@@ -156,7 +156,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
         <div className="card p-12 text-center">
           <div className="text-5xl mb-4">📚</div>
           <h3 className="font-semibold text-neutral-200 mb-2">No recipes yet</h3>
-          <p className="text-neutral-500">This creator hasn't published any recipes yet. Check back soon!</p>
+          <p className="text-neutral-500">This creator hasn&apos;t published any recipes yet. Check back soon!</p>
         </div>
       )}
     </div>

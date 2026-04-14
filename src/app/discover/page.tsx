@@ -25,7 +25,7 @@ export default async function DiscoverPage({
       <div>
         <h1 className="text-4xl font-bold text-neutral-100 mb-2">Discover Recipes</h1>
         <p className="text-neutral-400">
-          Explore our community's recipes and find your next culinary inspiration.
+          Explore our community&apos;s recipes and find your next culinary inspiration.
         </p>
       </div>
 

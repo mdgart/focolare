@@ -24,7 +24,7 @@ export default async function HomePage() {
             Cook with <span className="bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">confidence</span>
           </h1>
           <p className="text-lg text-neutral-400 mb-6 max-w-lg leading-relaxed">
-            Focolare guides you through every recipe step with automated timers, persistent alerts, and smart scheduling. Just set when you want it ready, and we'll tell you when to start.
+            Focolare guides you through every recipe step with automated timers, persistent alerts, and smart scheduling. Just set when you want it ready, and we&apos;ll tell you when to start.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link
@@ -58,7 +58,7 @@ export default async function HomePage() {
           <div className="flex items-start gap-4">
             <div className="text-3xl">👨‍🍳</div>
             <div className="flex-1">
-              <h3 className="font-semibold text-amber-100 mb-1">You're in the middle of cooking!</h3>
+              <h3 className="font-semibold text-amber-100 mb-1">You&apos;re in the middle of cooking!</h3>
               <p className="text-sm text-amber-200/80 mb-4">Continue where you left off and stay on track with automated timers.</p>
               <Link
                 href={`/cook/${active.id}`}
