@@ -23,8 +23,8 @@ export default async function DiscoverPage({
     <div className="space-y-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-4xl font-bold text-amber-100 mb-2">Discover Recipes</h1>
-        <p className="text-neutral-300">
+        <h1 className="text-4xl font-bold text-neutral-900 mb-2">Discover Recipes</h1>
+        <p className="text-neutral-600">
           Explore our community&apos;s recipes and find your next culinary inspiration.
         </p>
       </div>
@@ -52,7 +52,7 @@ export default async function DiscoverPage({
 
       {/* Category Filter */}
       <div>
-        <h3 className="text-sm font-semibold text-neutral-400 uppercase tracking-wide mb-3">
+        <h3 className="text-sm font-semibold text-neutral-700 uppercase tracking-wide mb-3">
           Browse by Category
         </h3>
         <div className="flex flex-wrap gap-2">
@@ -61,7 +61,7 @@ export default async function DiscoverPage({
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
               !category
                 ? "bg-amber-700 text-white"
-                : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
+                : "bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
             }`}
           >
             All Recipes
@@ -73,7 +73,7 @@ export default async function DiscoverPage({
               className={`px-4 py-2 rounded-full text-sm font-medium transition ${
                 category === cat.id
                   ? "bg-amber-700 text-white"
-                  : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
+                  : "bg-neutral-200 text-neutral-700 hover:bg-neutral-300"
               }`}
             >
               {cat.name}
@@ -86,7 +86,7 @@ export default async function DiscoverPage({
       <div>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-amber-100">
+            <h2 className="text-xl font-semibold text-neutral-900">
               {q ? `Results for "${q}"` : "All Recipes"}
             </h2>
             <p className="text-sm text-neutral-500 mt-1">
@@ -98,8 +98,8 @@ export default async function DiscoverPage({
         {recipes.length === 0 ? (
           <div className="card p-12 text-center">
             <div className="text-5xl mb-4">🔍</div>
-            <h3 className="font-semibold text-neutral-200 mb-2">No recipes found</h3>
-            <p className="text-neutral-500 mb-6">
+            <h3 className="font-semibold text-neutral-900 mb-2">No recipes found</h3>
+            <p className="text-neutral-600 mb-6">
               {q
                 ? `Try adjusting your search or browse by category.`
                 : "Be the first to create a recipe in this category!"}

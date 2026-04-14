@@ -32,12 +32,12 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
       {/* Creator Header */}
       <div className="border-b border-neutral-800 pb-12">
         <div className="flex items-start gap-6 mb-6">
-          <div className="h-16 w-16 rounded-full bg-gradient-to-br from-amber-700 to-yellow-600 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-amber-700/20">
+          <div className="h-16 w-16 rounded-full bg-gradient-to-br from-amber-700 to-amber-800 flex items-center justify-center text-3xl font-bold text-white shadow-lg shadow-amber-700/20">
             {ch.title[0]}
           </div>
           <div className="flex-1">
-            <h1 className="text-4xl font-bold text-amber-100 mb-2">{ch.title}</h1>
-            {ch.bio && <p className="text-lg text-neutral-300 max-w-2xl leading-relaxed">{ch.bio}</p>}
+            <h1 className="text-4xl font-bold text-neutral-900 mb-2">{ch.title}</h1>
+            {ch.bio && <p className="text-lg text-neutral-700 max-w-2xl leading-relaxed">{ch.bio}</p>}
             <div className="flex items-center gap-6 mt-4 text-sm text-neutral-500">
               <span>📦 {recipes.length} recipes</span>
               <span>👥 {sub.active ? "You're a member" : "Free tier"}</span>
@@ -48,12 +48,12 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
 
       {/* Subscription Section */}
       {memberRecipes.length > 0 && (
-        <div className="bg-gradient-to-r from-amber-900/20 to-yellow-900/20 border border-amber-800/40 rounded-lg p-8">
+        <div className="bg-gradient-to-r from-amber-100 to-yellow-100 border border-amber-300 rounded-lg p-8">
           <div className="max-w-2xl">
             <div className="flex items-start justify-between gap-6">
               <div>
-                <h2 className="text-2xl font-bold text-amber-100 mb-2">Member Recipes</h2>
-                <p className="text-amber-100/70 mb-4">
+                <h2 className="text-2xl font-bold text-amber-900 mb-2">Member Recipes</h2>
+                <p className="text-amber-900/70 mb-4">
                   {memberRecipes.length} exclusive recipe{memberRecipes.length === 1 ? "" : "s"} available to members. Subscribe to unlock all content.
                 </p>
               </div>
@@ -91,8 +91,8 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
       {publicRecipes.length > 0 && (
         <section>
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-amber-100">Free Recipes</h2>
-            <p className="text-neutral-400 mt-1">Explore these recipes free of charge</p>
+            <h2 className="text-2xl font-bold text-neutral-900">Free Recipes</h2>
+            <p className="text-neutral-700 mt-1">Explore these recipes free of charge</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {publicRecipes.map(({ r }) => (
@@ -112,8 +112,8 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
       {memberRecipes.length > 0 && (
         <section>
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-amber-100">Member Recipes</h2>
-            <p className="text-neutral-400 mt-1">Exclusive recipes for channel members</p>
+            <h2 className="text-2xl font-bold text-neutral-900">Member Recipes</h2>
+            <p className="text-neutral-700 mt-1">Exclusive recipes for channel members</p>
           </div>
 
           {sub.active ? (
@@ -155,8 +155,8 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
       {recipes.length === 0 && (
         <div className="card p-12 text-center">
           <div className="text-5xl mb-4">📚</div>
-          <h3 className="font-semibold text-neutral-200 mb-2">No recipes yet</h3>
-          <p className="text-neutral-500">This creator hasn&apos;t published any recipes yet. Check back soon!</p>
+          <h3 className="font-semibold text-neutral-900 mb-2">No recipes yet</h3>
+          <p className="text-neutral-600">This creator hasn&apos;t published any recipes yet. Check back soon!</p>
           <div className="mt-6">
             <Link href="/" className="btn btn-secondary inline-block">
               Browse Other Recipes

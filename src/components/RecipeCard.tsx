@@ -61,30 +61,30 @@ export function RecipeCard({
             </div>
           </div>
         ) : (
-          <div className="h-40 bg-gradient-to-br from-amber-900/30 to-yellow-900/30 flex items-center justify-center">
+          <div className="h-40 bg-gradient-to-br from-amber-100 to-yellow-100 flex items-center justify-center">
             <div className="text-center">
               <div className="text-4xl mb-2">🍳</div>
-              <p className="text-xs text-neutral-500">No image</p>
+              <p className="text-xs text-neutral-600">No image</p>
             </div>
           </div>
         )}
 
         {/* Content Container */}
         <div className="p-4">
-          <h3 className="font-semibold text-amber-50 line-clamp-2 mb-2 group-hover:text-amber-200 transition">
+          <h3 className="font-semibold text-neutral-900 line-clamp-2 mb-2 group-hover:text-amber-700 transition">
             {title}
           </h3>
 
           {description && (
-            <p className="text-sm text-neutral-400 line-clamp-2 mb-3">{description}</p>
+            <p className="text-sm text-neutral-600 line-clamp-2 mb-3">{description}</p>
           )}
 
           {/* Metadata Row */}
-          <div className="flex items-center justify-between gap-2 text-xs text-neutral-400 mb-3">
+          <div className="flex items-center justify-between gap-2 text-xs text-neutral-600 mb-3">
             {authorName && <span>by {authorName}</span>}
             {rating !== undefined && ratingCount !== undefined && (
               <div className="flex items-center gap-1">
-                <span className="text-amber-400">★</span>
+                <span className="text-amber-700">★</span>
                 <span>
                   {rating.toFixed(1)} ({ratingCount})
                 </span>
@@ -93,8 +93,8 @@ export function RecipeCard({
           </div>
 
           {/* Footer CTA */}
-          <div className="pt-3 border-t border-neutral-700/50">
-            <span className="text-sm font-medium text-amber-200 group-hover:text-amber-100 transition">
+          <div className="pt-3 border-t border-neutral-300">
+            <span className="text-sm font-medium text-amber-700 group-hover:text-amber-800 transition">
               View recipe →
             </span>
           </div>

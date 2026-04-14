@@ -7,12 +7,12 @@ export default async function HomePage() {
   const [active, picks] = await Promise.all([getActiveCookSessionForUser(), listPublishedRecipes()]);
 
   const categories = [
-    { icon: "🍞", name: "Bread", href: "/discover?category=bread", color: "from-amber-900 to-amber-800" },
-    { icon: "🎂", name: "Baking", href: "/discover?category=baking", color: "from-amber-800 to-yellow-800" },
-    { icon: "🍳", name: "Cooking", href: "/discover?category=cooking", color: "from-yellow-900 to-yellow-800" },
-    { icon: "🧂", name: "Curing", href: "/discover?category=curing", color: "from-green-900 to-green-800" },
-    { icon: "🥒", name: "Preserving", href: "/discover?category=preserving", color: "from-green-800 to-teal-900" },
-    { icon: "🍰", name: "Desserts", href: "/discover?category=desserts", color: "from-yellow-800 to-yellow-700" },
+    { icon: "🍞", name: "Bread", href: "/discover?category=bread", color: "from-amber-100 to-orange-100", textColor: "text-amber-900" },
+    { icon: "🎂", name: "Baking", href: "/discover?category=baking", color: "from-orange-100 to-yellow-100", textColor: "text-orange-900" },
+    { icon: "🍳", name: "Cooking", href: "/discover?category=cooking", color: "from-yellow-100 to-amber-100", textColor: "text-yellow-900" },
+    { icon: "🧂", name: "Curing", href: "/discover?category=curing", color: "from-green-100 to-emerald-100", textColor: "text-green-900" },
+    { icon: "🥒", name: "Preserving", href: "/discover?category=preserving", color: "from-emerald-100 to-teal-100", textColor: "text-emerald-900" },
+    { icon: "🍰", name: "Desserts", href: "/discover?category=desserts", color: "from-pink-100 to-rose-100", textColor: "text-pink-900" },
   ];
 
   return (
@@ -20,11 +20,11 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="py-12 sm:py-20">
         <div className="max-w-4xl">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-amber-100 mb-6 leading-tight">
-            Cook with <span className="bg-gradient-to-r from-amber-200 to-yellow-100 bg-clip-text text-transparent">confidence</span>
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-amber-900 mb-6 leading-tight">
+            Cook with <span className="bg-gradient-to-r from-amber-800 to-amber-700 bg-clip-text text-transparent">confidence</span>
           </h1>
-          <p className="text-xl sm:text-2xl text-neutral-300 mb-8 max-w-3xl leading-relaxed">
-            Focolare transforms your recipes into guided cooking experiences. Automated timers, persistent alerts, and reverse scheduling mean you&apos;ll never miss a step or timing—just set when you want your dish ready, and we tell you when to start.
+          <p className="text-lg sm:text-xl text-neutral-600 mb-8 max-w-2xl leading-relaxed">
+            Focolare guides you through every recipe with automated timers, alerts, and smart scheduling. Just set when you want your dish ready—we&apos;ll tell you when to start.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link
@@ -54,12 +54,12 @@ export default async function HomePage() {
 
       {/* Active Cook Session Alert */}
       {active && (
-        <section className="bg-gradient-to-r from-amber-900/20 to-yellow-900/20 border border-amber-800/40 rounded-lg p-6">
+        <section className="bg-gradient-to-r from-amber-100 to-yellow-100 border border-amber-300 rounded-lg p-6">
           <div className="flex items-start gap-4">
             <div className="text-3xl">👨‍🍳</div>
             <div className="flex-1">
-              <h3 className="font-semibold text-amber-200 mb-1">You&apos;re in the middle of cooking!</h3>
-              <p className="text-sm text-amber-100/70 mb-4">Continue where you left off and stay on track with automated timers.</p>
+              <h3 className="font-semibold text-amber-900 mb-1">You&apos;re in the middle of cooking!</h3>
+              <p className="text-sm text-amber-800/70 mb-4">Continue where you left off and stay on track with automated timers.</p>
               <Link
                 href={`/cook/${active.id}`}
                 className="btn btn-primary text-sm"
@@ -73,18 +73,18 @@ export default async function HomePage() {
 
       {/* Category Browse */}
       <section>
-        <h2 className="text-2xl font-bold text-neutral-100 mb-6">Browse by Category</h2>
+        <h2 className="text-2xl font-bold text-neutral-900 mb-6">Browse by Category</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {categories.map((cat) => (
             <Link
               key={cat.name}
               href={cat.href}
-              className={`group relative overflow-hidden rounded-lg p-6 text-center transition-all hover:shadow-lg hover:shadow-orange-500/20 hover:scale-105 bg-gradient-to-br ${cat.color} border border-black/20`}
+              className={`group relative overflow-hidden rounded-lg p-6 text-center transition-all hover:shadow-md hover:scale-105 bg-gradient-to-br ${cat.color} border border-neutral-300`}
             >
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition" />
               <div className="relative z-10">
                 <div className="text-5xl mb-3">{cat.icon}</div>
-                <div className="text-base font-semibold text-white/90 group-hover:text-white transition">
+                <div className={`text-base font-semibold ${cat.textColor} group-hover:opacity-80 transition`}>
                   {cat.name}
                 </div>
               </div>
@@ -97,10 +97,10 @@ export default async function HomePage() {
       <section>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-neutral-100">Fresh Picks</h2>
-            <p className="text-sm text-neutral-500 mt-1">Recently published recipes from our community</p>
+            <h2 className="text-2xl font-bold text-neutral-900">Fresh Picks</h2>
+            <p className="text-sm text-neutral-600 mt-1">Recently published recipes from our community</p>
           </div>
-          <Link href="/discover" className="text-amber-300 hover:text-amber-200 font-medium text-sm">
+          <Link href="/discover" className="text-amber-700 hover:text-amber-800 font-medium text-sm">
             View all →
           </Link>
         </div>
@@ -108,8 +108,8 @@ export default async function HomePage() {
         {picks.length === 0 ? (
           <div className="card p-12 text-center">
             <div className="text-5xl mb-4">📖</div>
-            <h3 className="font-semibold text-neutral-200 mb-2">No recipes yet</h3>
-            <p className="text-neutral-500 mb-6">Be the first to share a recipe with the community!</p>
+            <h3 className="font-semibold text-neutral-900 mb-2">No recipes yet</h3>
+            <p className="text-neutral-600 mb-6">Be the first to share a recipe with the community!</p>
             <Link
               href="/create/recipe"
               className="btn btn-primary inline-block"
@@ -132,9 +132,9 @@ export default async function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 bg-gradient-to-r from-amber-900/20 via-yellow-900/20 to-green-900/20 border border-amber-800/30 rounded-lg p-8 text-center">
-        <h2 className="text-2xl font-bold text-amber-100 mb-3">Ready to start cooking?</h2>
-        <p className="text-neutral-300 mb-6 max-w-md mx-auto">
+      <section className="py-12 bg-gradient-to-r from-amber-100 via-yellow-100 to-orange-100 border border-amber-300 rounded-lg p-8 text-center">
+        <h2 className="text-2xl font-bold text-amber-900 mb-3">Ready to start cooking?</h2>
+        <p className="text-neutral-700 mb-6 max-w-md mx-auto">
           Join our community of home cooks, bakers, and culinary explorers. Share your recipes or discover new ones.
         </p>
         <Link

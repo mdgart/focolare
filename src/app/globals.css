@@ -1,29 +1,29 @@
 @import "tailwindcss";
 
 :root {
-  /* Light mode colors */
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Light mode colors - fresh, inviting palette */
+  --background: #faf8f4;
+  --foreground: #2d2520;
 
-  /* Dark mode - earthy/natural palette */
-  --bg-primary: #1a1410;
-  --bg-secondary: #2a2420;
-  --bg-tertiary: #3a3530;
-  --text-primary: #f5f1e8;
-  --text-secondary: #d4cfc0;
-  --text-muted: #9e9890;
+  /* Light backgrounds */
+  --bg-primary: #faf8f4;
+  --bg-secondary: #f5f1e8;
+  --bg-tertiary: #ede7de;
+  --text-primary: #2d2520;
+  --text-secondary: #5a5550;
+  --text-muted: #9a9590;
 
-  /* Earthy accent colors (natural ingredient palette) */
-  --accent-primary: #8b7355;
-  --accent-primary-light: #a89070;
-  --accent-green: #5a8a5a;
-  --accent-green-light: #7aa97a;
-  --accent-cream: #e8dcc8;
-  --accent-gold: #c9a961;
+  /* Warm, natural accent colors */
+  --accent-primary: #a0826d;
+  --accent-primary-light: #b39885;
+  --accent-green: #6b8f7a;
+  --accent-green-light: #88a99a;
+  --accent-cream: #f0e6d2;
+  --accent-gold: #d4a574;
 
   /* Border and divider */
-  --border-color: #4a4540;
-  --border-subtle: #3a3530;
+  --border-color: #e0d5c8;
+  --border-subtle: #e8dcc8;
 }
 
 @theme inline {
@@ -41,7 +41,7 @@
 }
 
 body {
-  background: linear-gradient(135deg, #1a1410 0%, #23201b 25%, #2a2420 50%, #21201b 75%, #1a1410 100%);
+  background: linear-gradient(135deg, #faf8f4 0%, #f9f6f1 25%, #f5f1e8 50%, #f9f6f1 75%, #faf8f4 100%);
   background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
@@ -70,15 +70,17 @@ h3 {
 
 /* Card and container styles */
 .card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-subtle);
+  background: white;
+  border: 1px solid var(--border-color);
   border-radius: 0.75rem;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .card:hover {
-  border-color: var(--border-color);
-  background: var(--bg-tertiary);
+  border-color: var(--accent-primary);
+  background: var(--bg-secondary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 /* Button base styles */
@@ -86,33 +88,36 @@ h3 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 1rem;
-  font-weight: 500;
-  transition: all 0.3s ease;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  transition: all 0.2s ease;
   cursor: pointer;
   padding: 0.875rem 1.75rem;
   border: none;
+  font-size: 0.95rem;
 }
 
 .btn-primary {
   background: var(--accent-primary);
-  color: var(--text-primary);
+  color: white;
+  box-shadow: 0 2px 8px rgba(160, 130, 109, 0.15);
 }
 
 .btn-primary:hover {
   background: var(--accent-primary-light);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(139, 115, 85, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(160, 130, 109, 0.25);
 }
 
 .btn-secondary {
-  background: var(--bg-tertiary);
+  background: white;
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
+  border: 1.5px solid var(--border-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .btn-secondary:hover {
-  background: var(--border-color);
-  border-color: var(--accent-primary-light);
-  color: var(--accent-gold);
+  background: var(--bg-secondary);
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
 }
