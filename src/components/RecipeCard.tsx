@@ -61,7 +61,7 @@ export function RecipeCard({
             </div>
           </div>
         ) : (
-          <div className="h-40 bg-gradient-to-br from-neutral-800 to-neutral-700 flex items-center justify-center">
+          <div className="h-40 bg-gradient-to-br from-amber-900/30 to-yellow-900/30 flex items-center justify-center">
             <div className="text-center">
               <div className="text-4xl mb-2">🍳</div>
               <p className="text-xs text-neutral-500">No image</p>
@@ -71,12 +71,12 @@ export function RecipeCard({
 
         {/* Content Container */}
         <div className="p-4">
-          <h3 className="font-semibold text-neutral-100 line-clamp-2 mb-2 group-hover:text-amber-200 transition">
+          <h3 className="font-semibold text-amber-50 line-clamp-2 mb-2 group-hover:text-amber-200 transition">
             {title}
           </h3>
 
           {description && (
-            <p className="text-sm text-neutral-500 line-clamp-2 mb-3">{description}</p>
+            <p className="text-sm text-neutral-400 line-clamp-2 mb-3">{description}</p>
           )}
 
           {/* Metadata Row */}
@@ -94,7 +94,7 @@ export function RecipeCard({
 
           {/* Footer CTA */}
           <div className="pt-3 border-t border-neutral-700/50">
-            <span className="text-sm font-medium text-amber-300 group-hover:text-amber-200 transition">
+            <span className="text-sm font-medium text-amber-200 group-hover:text-amber-100 transition">
               View recipe →
             </span>
           </div>

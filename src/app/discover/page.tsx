@@ -23,8 +23,8 @@ export default async function DiscoverPage({
     <div className="space-y-8">
       {/* Page Header */}
       <div>
-        <h1 className="text-4xl font-bold text-neutral-100 mb-2">Discover Recipes</h1>
-        <p className="text-neutral-400">
+        <h1 className="text-4xl font-bold text-amber-100 mb-2">Discover Recipes</h1>
+        <p className="text-neutral-300">
           Explore our community&apos;s recipes and find your next culinary inspiration.
         </p>
       </div>
@@ -60,7 +60,7 @@ export default async function DiscoverPage({
             href="/discover"
             className={`px-4 py-2 rounded-full text-sm font-medium transition ${
               !category
-                ? "bg-amber-600 text-white"
+                ? "bg-amber-700 text-white"
                 : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
             }`}
           >
@@ -72,7 +72,7 @@ export default async function DiscoverPage({
               href={`/discover?category=${cat.id}`}
               className={`px-4 py-2 rounded-full text-sm font-medium transition ${
                 category === cat.id
-                  ? "bg-amber-600 text-white"
+                  ? "bg-amber-700 text-white"
                   : "bg-neutral-800 text-neutral-300 hover:bg-neutral-700"
               }`}
             >
@@ -86,7 +86,7 @@ export default async function DiscoverPage({
       <div>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-neutral-100">
+            <h2 className="text-xl font-semibold text-amber-100">
               {q ? `Results for "${q}"` : "All Recipes"}
             </h2>
             <p className="text-sm text-neutral-500 mt-1">

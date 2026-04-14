@@ -7,12 +7,12 @@ export default async function HomePage() {
   const [active, picks] = await Promise.all([getActiveCookSessionForUser(), listPublishedRecipes()]);
 
   const categories = [
-    { icon: "🍞", name: "Bread", href: "/discover?category=bread", color: "from-orange-900 to-orange-800" },
-    { icon: "🎂", name: "Baking", href: "/discover?category=baking", color: "from-amber-900 to-amber-800" },
-    { icon: "🍳", name: "Cooking", href: "/discover?category=cooking", color: "from-rose-900 to-rose-800" },
-    { icon: "🧂", name: "Curing", href: "/discover?category=curing", color: "from-red-900 to-red-800" },
-    { icon: "🥒", name: "Preserving", href: "/discover?category=preserving", color: "from-green-900 to-green-800" },
-    { icon: "🍰", name: "Desserts", href: "/discover?category=desserts", color: "from-yellow-900 to-yellow-800" },
+    { icon: "🍞", name: "Bread", href: "/discover?category=bread", color: "from-amber-900 to-amber-800" },
+    { icon: "🎂", name: "Baking", href: "/discover?category=baking", color: "from-amber-800 to-yellow-800" },
+    { icon: "🍳", name: "Cooking", href: "/discover?category=cooking", color: "from-yellow-900 to-yellow-800" },
+    { icon: "🧂", name: "Curing", href: "/discover?category=curing", color: "from-green-900 to-green-800" },
+    { icon: "🥒", name: "Preserving", href: "/discover?category=preserving", color: "from-green-800 to-teal-900" },
+    { icon: "🍰", name: "Desserts", href: "/discover?category=desserts", color: "from-yellow-800 to-yellow-700" },
   ];
 
   return (
@@ -20,8 +20,8 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="py-12 sm:py-20">
         <div className="max-w-4xl">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-neutral-100 mb-6 leading-tight">
-            Cook with <span className="bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">confidence</span>
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-amber-100 mb-6 leading-tight">
+            Cook with <span className="bg-gradient-to-r from-amber-200 to-yellow-100 bg-clip-text text-transparent">confidence</span>
           </h1>
           <p className="text-xl sm:text-2xl text-neutral-300 mb-8 max-w-3xl leading-relaxed">
             Focolare transforms your recipes into guided cooking experiences. Automated timers, persistent alerts, and reverse scheduling mean you&apos;ll never miss a step or timing—just set when you want your dish ready, and we tell you when to start.
@@ -54,12 +54,12 @@ export default async function HomePage() {
 
       {/* Active Cook Session Alert */}
       {active && (
-        <section className="bg-gradient-to-r from-amber-900/30 to-orange-900/30 border border-amber-700/40 rounded-lg p-6">
+        <section className="bg-gradient-to-r from-amber-900/20 to-yellow-900/20 border border-amber-800/40 rounded-lg p-6">
           <div className="flex items-start gap-4">
             <div className="text-3xl">👨‍🍳</div>
             <div className="flex-1">
-              <h3 className="font-semibold text-amber-100 mb-1">You&apos;re in the middle of cooking!</h3>
-              <p className="text-sm text-amber-200/80 mb-4">Continue where you left off and stay on track with automated timers.</p>
+              <h3 className="font-semibold text-amber-200 mb-1">You&apos;re in the middle of cooking!</h3>
+              <p className="text-sm text-amber-100/70 mb-4">Continue where you left off and stay on track with automated timers.</p>
               <Link
                 href={`/cook/${active.id}`}
                 className="btn btn-primary text-sm"
@@ -132,9 +132,9 @@ export default async function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 bg-gradient-to-r from-orange-900/20 via-amber-900/20 to-yellow-900/20 border border-orange-700/30 rounded-lg p-8 text-center">
-        <h2 className="text-2xl font-bold text-neutral-100 mb-3">Ready to start cooking?</h2>
-        <p className="text-neutral-400 mb-6 max-w-md mx-auto">
+      <section className="py-12 bg-gradient-to-r from-amber-900/20 via-yellow-900/20 to-green-900/20 border border-amber-800/30 rounded-lg p-8 text-center">
+        <h2 className="text-2xl font-bold text-amber-100 mb-3">Ready to start cooking?</h2>
+        <p className="text-neutral-300 mb-6 max-w-md mx-auto">
           Join our community of home cooks, bakers, and culinary explorers. Share your recipes or discover new ones.
         </p>
         <Link

@@ -51,9 +51,9 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
             </span>
           )}
         </div>
-        <h1 className="text-4xl font-bold text-neutral-100 mb-4 leading-tight">{r.title}</h1>
+        <h1 className="text-4xl font-bold text-amber-100 mb-4 leading-tight">{r.title}</h1>
         {r.description && (
-          <p className="text-lg text-neutral-400 max-w-2xl">{r.description}</p>
+          <p className="text-lg text-neutral-300 max-w-2xl">{r.description}</p>
         )}
       </div>
 
@@ -62,22 +62,22 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div className="card p-4">
             <div className="text-xs text-neutral-500 uppercase font-medium mb-1">Total Time</div>
-            <div className="text-2xl font-bold text-amber-400">{totalDurationMinutes}m</div>
+            <div className="text-2xl font-bold text-amber-200">{totalDurationMinutes}m</div>
           </div>
           <div className="card p-4">
             <div className="text-xs text-neutral-500 uppercase font-medium mb-1">Steps</div>
-            <div className="text-2xl font-bold text-amber-400">{steps.length}</div>
+            <div className="text-2xl font-bold text-amber-200">{steps.length}</div>
           </div>
           <div className="card p-4">
             <div className="text-xs text-neutral-500 uppercase font-medium mb-1">Ingredients</div>
-            <div className="text-2xl font-bold text-amber-400">{r.ingredients?.length ?? 0}</div>
+            <div className="text-2xl font-bold text-amber-200">{r.ingredients?.length ?? 0}</div>
           </div>
         </div>
       )}
 
       {/* Ingredients Section */}
       <section>
-        <h2 className="text-2xl font-bold text-neutral-100 mb-6">Ingredients</h2>
+        <h2 className="text-2xl font-bold text-amber-100 mb-6">Ingredients</h2>
         <div className="card divide-y divide-neutral-700">
           {(r.ingredients ?? []).length === 0 ? (
             <div className="p-6 text-center text-neutral-500">
@@ -108,7 +108,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
 
       {/* Steps Section */}
       <section>
-        <h2 className="text-2xl font-bold text-neutral-100 mb-6">Steps</h2>
+        <h2 className="text-2xl font-bold text-amber-100 mb-6">Steps</h2>
         <div className="space-y-4">
           {steps.length === 0 ? (
             <div className="card p-6 text-center text-neutral-500">

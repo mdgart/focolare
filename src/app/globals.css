@@ -5,25 +5,25 @@
   --background: #ffffff;
   --foreground: #171717;
 
-  /* Dark mode colors */
-  --bg-primary: #0f0f0f;
-  --bg-secondary: #1a1a1a;
-  --bg-tertiary: #262626;
-  --text-primary: #fafafa;
-  --text-secondary: #d1d5db;
-  --text-muted: #9ca3af;
+  /* Dark mode - earthy/natural palette */
+  --bg-primary: #1a1410;
+  --bg-secondary: #2a2420;
+  --bg-tertiary: #3a3530;
+  --text-primary: #f5f1e8;
+  --text-secondary: #d4cfc0;
+  --text-muted: #9e9890;
 
-  /* Warm accent colors (food-focused palette) */
-  --accent-warm: #f97316;
-  --accent-warm-light: #fb923c;
-  --accent-warm-lighter: #fed7aa;
-  --accent-gold: #fbbf24;
-  --accent-red: #dc2626;
-  --accent-green: #16a34a;
+  /* Earthy accent colors (natural ingredient palette) */
+  --accent-primary: #8b7355;
+  --accent-primary-light: #a89070;
+  --accent-green: #5a8a5a;
+  --accent-green-light: #7aa97a;
+  --accent-cream: #e8dcc8;
+  --accent-gold: #c9a961;
 
   /* Border and divider */
-  --border-color: #404040;
-  --border-subtle: #2d2d2d;
+  --border-color: #4a4540;
+  --border-subtle: #3a3530;
 }
 
 @theme inline {
@@ -41,7 +41,7 @@
 }
 
 body {
-  background: linear-gradient(135deg, #1a1410 0%, #2a2015 25%, #2d1f18 50%, #1f1815 75%, #1a1410 100%);
+  background: linear-gradient(135deg, #1a1410 0%, #23201b 25%, #2a2420 50%, #21201b 75%, #1a1410 100%);
   background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
@@ -86,36 +86,33 @@ h3 {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 9999px;
-  font-weight: 600;
-  transition: all 0.2s ease;
+  border-radius: 1rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
   cursor: pointer;
-  padding: 0.75rem 1.5rem;
-  border: 2px solid transparent;
+  padding: 0.875rem 1.75rem;
+  border: none;
 }
 
 .btn-primary {
-  background: transparent;
-  color: white;
-  border: 2px solid var(--accent-warm);
-  background: var(--accent-warm);
+  background: var(--accent-primary);
+  color: var(--text-primary);
 }
 
 .btn-primary:hover {
-  background: var(--accent-warm-light);
-  border-color: var(--accent-warm-light);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.2);
+  background: var(--accent-primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px rgba(139, 115, 85, 0.2);
 }
 
 .btn-secondary {
-  background: transparent;
+  background: var(--bg-tertiary);
   color: var(--text-primary);
-  border: 2px solid var(--border-color);
+  border: 1px solid var(--border-color);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--accent-warm);
-  color: var(--accent-warm-light);
+  background: var(--border-color);
+  border-color: var(--accent-primary-light);
+  color: var(--accent-gold);
 }
