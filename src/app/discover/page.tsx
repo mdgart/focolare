@@ -119,7 +119,6 @@ export default async function DiscoverPage({
                 id={recipe.id}
                 title={recipe.title}
                 description={recipe.description}
-                authorEmail={recipe.authorEmail}
               />
             ))}
           </div>

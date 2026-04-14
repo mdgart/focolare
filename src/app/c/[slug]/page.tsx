@@ -101,7 +101,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
                 id={r.id}
                 title={r.title}
                 description={r.description}
-                authorEmail={ch.title}
+                authorName={ch.title}
               />
             ))}
           </div>
@@ -126,7 +126,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
                       id={r.id}
                       title={r.title}
                       description={r.description}
-                      authorEmail={ch.title}
+                      authorName={ch.title}
                     />
                   </div>
                 ))}

@@ -4,9 +4,9 @@ import Image from "next/image";
 interface RecipeCardProps {
   id: string;
   title: string;
-  description?: string;
-  authorEmail?: string;
-  imageUrl?: string;
+  description?: string | null;
+  authorName?: string | null;
+  imageUrl?: string | null;
   cookTime?: number;
   prepTime?: number;
   difficulty?: "easy" | "medium" | "hard";
@@ -18,7 +18,7 @@ export function RecipeCard({
   id,
   title,
   description,
-  authorEmail,
+  authorName,
   imageUrl,
   cookTime,
   prepTime,
@@ -81,7 +81,7 @@ export function RecipeCard({
 
           {/* Metadata Row */}
           <div className="flex items-center justify-between gap-2 text-xs text-neutral-400 mb-3">
-            {authorEmail && <span>by {authorEmail.split("@")[0]}</span>}
+            {authorName && <span>by {authorName}</span>}
             {rating !== undefined && ratingCount !== undefined && (
               <div className="flex items-center gap-1">
                 <span className="text-amber-400">★</span>

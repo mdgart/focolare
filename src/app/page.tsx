@@ -122,7 +122,6 @@ export default async function HomePage() {
                 id={recipe.id}
                 title={recipe.title}
                 description={recipe.description}
-                authorEmail={recipe.authorEmail}
               />
             ))}
           </div>
