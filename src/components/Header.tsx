@@ -26,8 +26,7 @@ export async function Header() {
             />
           </div>
           <div className="hidden flex-col sm:flex">
-            <span className="text-lg font-bold tracking-tight text-amber-900">Focolare</span>
-            <span className="text-xs text-neutral-600">Cook with Confidence</span>
+            <span className="text-2xl font-bold tracking-tight text-amber-900">Focolare</span>
           </div>
         </Link>
 

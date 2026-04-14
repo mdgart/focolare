@@ -23,7 +23,7 @@ export default async function HomePage() {
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-neutral-900 mb-6 leading-tight">
             Cook with <span className="text-orange-600 font-black">confidence</span>
           </h1>
-          <p className="text-lg sm:text-xl text-neutral-600 mb-8 max-w-2xl leading-relaxed">
+          <p className="text-lg sm:text-xl text-neutral-600 mb-8 max-w-4xl leading-relaxed">
             Focolare guides you through every recipe with automated timers, alerts, and smart scheduling. Just set when you want your dish ready—we&apos;ll tell you when to start.
           </p>
           <div className="flex flex-wrap gap-4">
