@@ -38,7 +38,7 @@ export default function SignUpPage() {
           placeholder="Display name (optional)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-500"
         />
         <input
           type="email"
@@ -47,7 +47,7 @@ export default function SignUpPage() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-500"
         />
         <input
           type="password"
@@ -56,12 +56,12 @@ export default function SignUpPage() {
           placeholder="Password (min 8 chars)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-500"
         />
         <button
           type="submit"
           disabled={pending}
-          className="w-full rounded-lg bg-amber-500 py-2 text-sm font-semibold text-neutral-950 hover:bg-amber-400 disabled:opacity-50"
+          className="btn btn-primary w-full disabled:opacity-50"
         >
           {pending ? "Creating…" : "Create account"}
         </button>
