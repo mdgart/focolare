@@ -16,9 +16,9 @@ export default async function HomePage() {
   ];
 
   return (
-    <div className="space-y-12">
+    <div className="space-y-8">
       {/* Hero Section */}
-      <section className="py-12 sm:py-20">
+      <section className="py-8 sm:py-12">
         <div className="max-w-4xl">
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-neutral-900 mb-6 leading-tight">
             Cook with <span className="text-orange-600 font-black">confidence</span>
@@ -132,7 +132,7 @@ export default async function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 bg-gradient-to-r from-amber-100 via-yellow-100 to-orange-100 border border-amber-300 rounded-lg p-8 text-center">
+      <section className="py-8 bg-gradient-to-r from-amber-100 via-yellow-100 to-orange-100 border border-amber-300 rounded-lg p-8 text-center">
         <h2 className="text-2xl font-bold text-amber-900 mb-3">Ready to start cooking?</h2>
         <p className="text-neutral-700 mb-6 max-w-md mx-auto">
           Join our community of home cooks, bakers, and culinary explorers. Share your recipes or discover new ones.
