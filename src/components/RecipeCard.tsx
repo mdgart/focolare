@@ -62,17 +62,14 @@ export function RecipeCard({
           </div>
         ) : (
           <div className="h-40 bg-gradient-to-br from-amber-100 to-yellow-100 flex items-center justify-center">
-            <div className="text-center">
-              <Image
-                src="/logo.png"
-                alt="Focolare logo placeholder"
-                width={60}
-                height={60}
-                className="mx-auto mb-2 drop-shadow-md opacity-70"
-                unoptimized
-              />
-              <p className="text-xs text-neutral-600">No image</p>
-            </div>
+            <Image
+              src="/logo.png"
+              alt="Focolare logo placeholder"
+              width={60}
+              height={60}
+              className="drop-shadow-md opacity-70"
+              unoptimized
+            />
           </div>
         )}
 
