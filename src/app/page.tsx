@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { getActiveCookSessionForUser } from "@/actions/cook";
 import { listPublishedRecipes } from "@/actions/recipes";
 import { RecipeCard } from "@/components/RecipeCard";
@@ -7,12 +8,36 @@ export default async function HomePage() {
   const [active, picks] = await Promise.all([getActiveCookSessionForUser(), listPublishedRecipes()]);
 
   const categories = [
-    { icon: "🍞", name: "Bread", href: "/discover?category=bread", color: "from-amber-400 to-amber-500", textColor: "text-white" },
-    { icon: "🎂", name: "Baking", href: "/discover?category=baking", color: "from-orange-400 to-yellow-500", textColor: "text-white" },
-    { icon: "🍳", name: "Cooking", href: "/discover?category=cooking", color: "from-red-400 to-orange-500", textColor: "text-white" },
-    { icon: "🧂", name: "Curing", href: "/discover?category=curing", color: "from-green-500 to-emerald-600", textColor: "text-white" },
-    { icon: "🥒", name: "Preserving", href: "/discover?category=preserving", color: "from-emerald-500 to-teal-600", textColor: "text-white" },
-    { icon: "🍰", name: "Desserts", href: "/discover?category=desserts", color: "from-pink-400 to-rose-500", textColor: "text-white" },
+    {
+      name: "Bread",
+      href: "/discover?category=bread",
+      image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=400&h=400&fit=crop"
+    },
+    {
+      name: "Baking",
+      href: "/discover?category=baking",
+      image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&h=400&fit=crop"
+    },
+    {
+      name: "Cooking",
+      href: "/discover?category=cooking",
+      image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop"
+    },
+    {
+      name: "Curing",
+      href: "/discover?category=curing",
+      image: "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?w=400&h=400&fit=crop"
+    },
+    {
+      name: "Preserving",
+      href: "/discover?category=preserving",
+      image: "https://images.unsplash.com/photo-1585518419759-dbbeb900d2f8?w=400&h=400&fit=crop"
+    },
+    {
+      name: "Desserts",
+      href: "/discover?category=desserts",
+      image: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400&h=400&fit=crop"
+    },
   ];
 
   return (
@@ -79,14 +104,20 @@ export default async function HomePage() {
             <Link
               key={cat.name}
               href={cat.href}
-              className={`group relative overflow-hidden rounded-lg p-6 text-center transition-all hover:shadow-lg hover:scale-105 bg-gradient-to-br ${cat.color} border border-neutral-400 group-hover:border-neutral-500`}
+              className="group relative overflow-hidden rounded-lg text-center transition-all hover:shadow-lg hover:scale-105 border border-neutral-400 group-hover:border-neutral-500 h-48 sm:h-56"
             >
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
-              <div className="relative z-10">
-                <div className="text-5xl mb-3">{cat.icon}</div>
-                <div className={`text-base font-semibold ${cat.textColor} group-hover:opacity-80 transition`}>
+              <Image
+                src={cat.image}
+                alt={cat.name}
+                fill
+                className="object-cover group-hover:scale-110 transition-transform duration-300"
+                unoptimized
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60 group-hover:opacity-70 transition" />
+              <div className="absolute inset-0 flex items-end justify-center pb-6 z-10">
+                <h3 className="text-xl font-bold text-white drop-shadow-lg">
                   {cat.name}
-                </div>
+                </h3>
               </div>
             </Link>
           ))}
