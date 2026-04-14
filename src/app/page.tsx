@@ -18,13 +18,13 @@ export default async function HomePage() {
   return (
     <div className="space-y-12">
       {/* Hero Section */}
-      <section className="py-8 sm:py-12">
-        <div className="max-w-2xl">
-          <h1 className="text-4xl sm:text-5xl font-bold text-neutral-100 mb-4 leading-tight">
+      <section className="py-12 sm:py-20">
+        <div className="max-w-4xl">
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-neutral-100 mb-6 leading-tight">
             Cook with <span className="bg-gradient-to-r from-orange-400 to-amber-300 bg-clip-text text-transparent">confidence</span>
           </h1>
-          <p className="text-lg text-neutral-400 mb-6 max-w-lg leading-relaxed">
-            Focolare guides you through every recipe step with automated timers, persistent alerts, and smart scheduling. Just set when you want it ready, and we&apos;ll tell you when to start.
+          <p className="text-xl sm:text-2xl text-neutral-300 mb-8 max-w-3xl leading-relaxed">
+            Focolare transforms your recipes into guided cooking experiences. Automated timers, persistent alerts, and reverse scheduling mean you&apos;ll never miss a step or timing—just set when you want your dish ready, and we tell you when to start.
           </p>
           <div className="flex flex-wrap gap-4">
             <Link

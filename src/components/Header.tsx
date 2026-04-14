@@ -7,7 +7,7 @@ export async function Header() {
   const session = await getServerSession();
   const logoSrc = getPublicLogoUrl();
   return (
-    <header className="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-950/95 backdrop-blur-sm">
+    <header className="sticky top-0 z-50 border-b border-orange-900/30 bg-gradient-to-b from-orange-950/40 to-neutral-950/80 backdrop-blur-sm">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-4 py-4">
         <Link
           href="/"
@@ -18,11 +18,11 @@ export async function Header() {
             <Image
               src={logoSrc}
               alt=""
-              width={40}
-              height={40}
+              width={56}
+              height={56}
               priority
               unoptimized
-              className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_0_16px_rgba(249,115,22,0.35)]"
+              className="h-14 w-14 shrink-0 object-contain drop-shadow-[0_0_20px_rgba(249,115,22,0.4)]"
             />
           </div>
           <div className="hidden flex-col sm:flex">
