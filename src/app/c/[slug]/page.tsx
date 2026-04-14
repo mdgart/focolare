@@ -69,17 +69,17 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
               >
                 <button
                   type="submit"
-                  className={`btn px-6 py-3 font-semibold transition ${
+                  className={`btn font-semibold transition ${
                     sub.active
                       ? "btn-secondary"
-                      : "btn-primary shadow-lg shadow-orange-500/20"
+                      : "btn-primary"
                   }`}
                 >
                   {sub.active ? "✓ You're a Member" : "Become a Member"}
                 </button>
               </form>
             ) : (
-              <Link href="/sign-in" className="btn btn-primary px-6 py-3 font-semibold shadow-lg shadow-orange-500/20 inline-block">
+              <Link href="/sign-in" className="btn btn-primary font-semibold inline-block">
                 Sign in to Subscribe
               </Link>
             )}
@@ -157,6 +157,11 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
           <div className="text-5xl mb-4">📚</div>
           <h3 className="font-semibold text-neutral-200 mb-2">No recipes yet</h3>
           <p className="text-neutral-500">This creator hasn&apos;t published any recipes yet. Check back soon!</p>
+          <div className="mt-6">
+            <Link href="/" className="btn btn-secondary inline-block">
+              Browse Other Recipes
+            </Link>
+          </div>
         </div>
       )}
     </div>

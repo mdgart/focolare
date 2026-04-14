@@ -43,7 +43,7 @@ export default async function DiscoverPage({
           </div>
           <button
             type="submit"
-            className="btn btn-primary px-6 py-3 font-medium shadow-lg shadow-orange-500/20"
+            className="btn btn-primary font-medium"
           >
             Search
           </button>
@@ -106,7 +106,7 @@ export default async function DiscoverPage({
             </p>
             <Link
               href="/create/recipe"
-              className="btn btn-primary px-6 py-2 inline-block"
+              className="btn btn-primary inline-block"
             >
               Create Recipe
             </Link>

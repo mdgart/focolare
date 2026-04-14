@@ -7,12 +7,12 @@ export default async function HomePage() {
   const [active, picks] = await Promise.all([getActiveCookSessionForUser(), listPublishedRecipes()]);
 
   const categories = [
-    { name: "🍞 Bread", href: "/discover?category=bread" },
-    { name: "🎂 Baking", href: "/discover?category=baking" },
-    { name: "🍳 Cooking", href: "/discover?category=cooking" },
-    { name: "🧂 Curing", href: "/discover?category=curing" },
-    { name: "🥒 Preserving", href: "/discover?category=preserving" },
-    { name: "🍰 Desserts", href: "/discover?category=desserts" },
+    { icon: "🍞", name: "Bread", href: "/discover?category=bread", color: "from-orange-900 to-orange-800" },
+    { icon: "🎂", name: "Baking", href: "/discover?category=baking", color: "from-amber-900 to-amber-800" },
+    { icon: "🍳", name: "Cooking", href: "/discover?category=cooking", color: "from-rose-900 to-rose-800" },
+    { icon: "🧂", name: "Curing", href: "/discover?category=curing", color: "from-red-900 to-red-800" },
+    { icon: "🥒", name: "Preserving", href: "/discover?category=preserving", color: "from-green-900 to-green-800" },
+    { icon: "🍰", name: "Desserts", href: "/discover?category=desserts", color: "from-yellow-900 to-yellow-800" },
   ];
 
   return (
@@ -29,21 +29,21 @@ export default async function HomePage() {
           <div className="flex flex-wrap gap-4">
             <Link
               href="/discover"
-              className="btn btn-primary px-6 py-3 text-base shadow-lg shadow-orange-500/20"
+              className="btn btn-primary text-base"
             >
               Explore Recipes
             </Link>
             {active ? (
               <Link
                 href={`/cook/${active.id}`}
-                className="btn btn-secondary px-6 py-3 text-base"
+                className="btn btn-secondary text-base"
               >
                 Resume Cooking →
               </Link>
             ) : (
               <Link
                 href="/create/recipe"
-                className="btn btn-secondary px-6 py-3 text-base"
+                className="btn btn-secondary text-base"
               >
                 Create Your First Recipe
               </Link>
@@ -62,7 +62,7 @@ export default async function HomePage() {
               <p className="text-sm text-amber-200/80 mb-4">Continue where you left off and stay on track with automated timers.</p>
               <Link
                 href={`/cook/${active.id}`}
-                className="btn btn-primary px-4 py-2 text-sm"
+                className="btn btn-primary text-sm"
               >
                 Continue Cooking
               </Link>
@@ -74,16 +74,19 @@ export default async function HomePage() {
       {/* Category Browse */}
       <section>
         <h2 className="text-2xl font-bold text-neutral-100 mb-6">Browse by Category</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {categories.map((cat) => (
             <Link
               key={cat.name}
               href={cat.href}
-              className="group card p-4 text-center hover:border-amber-600/50"
+              className={`group relative overflow-hidden rounded-lg p-6 text-center transition-all hover:shadow-lg hover:shadow-orange-500/20 hover:scale-105 bg-gradient-to-br ${cat.color} border border-black/20`}
             >
-              <div className="text-3xl mb-2">{cat.name.split(" ")[0]}</div>
-              <div className="text-sm font-medium text-neutral-300 group-hover:text-amber-200 transition">
-                {cat.name.split(" ")[1]}
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
+              <div className="relative z-10">
+                <div className="text-5xl mb-3">{cat.icon}</div>
+                <div className="text-base font-semibold text-white/90 group-hover:text-white transition">
+                  {cat.name}
+                </div>
               </div>
             </Link>
           ))}
@@ -109,7 +112,7 @@ export default async function HomePage() {
             <p className="text-neutral-500 mb-6">Be the first to share a recipe with the community!</p>
             <Link
               href="/create/recipe"
-              className="btn btn-primary px-6 py-2 inline-block"
+              className="btn btn-primary inline-block"
             >
               Create Recipe
             </Link>
@@ -136,7 +139,7 @@ export default async function HomePage() {
         </p>
         <Link
           href="/sign-up"
-          className="btn btn-primary px-8 py-3 font-semibold shadow-lg shadow-orange-500/20 inline-block"
+          className="btn btn-primary inline-block"
         >
           Sign Up Free
         </Link>

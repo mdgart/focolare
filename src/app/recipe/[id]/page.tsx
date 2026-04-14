@@ -156,7 +156,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
             </p>
             <Link
               href="/sign-in"
-              className="btn btn-primary px-8 py-3 font-semibold shadow-lg shadow-orange-500/20"
+              className="btn btn-primary font-semibold"
             >
               Sign In to Cook
             </Link>

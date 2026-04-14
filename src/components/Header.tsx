@@ -70,7 +70,7 @@ export async function Header() {
               </Link>
               <Link
                 href="/sign-up"
-                className="rounded-full bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2 text-sm font-semibold text-white hover:from-orange-600 hover:to-amber-600 transition shadow-lg shadow-orange-500/20"
+                className="btn btn-primary text-sm"
               >
                 Sign up
               </Link>
