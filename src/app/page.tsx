@@ -7,12 +7,12 @@ export default async function HomePage() {
   const [active, picks] = await Promise.all([getActiveCookSessionForUser(), listPublishedRecipes()]);
 
   const categories = [
-    { icon: "🍞", name: "Bread", href: "/discover?category=bread", color: "from-amber-100 to-orange-100", textColor: "text-amber-900" },
-    { icon: "🎂", name: "Baking", href: "/discover?category=baking", color: "from-orange-100 to-yellow-100", textColor: "text-orange-900" },
-    { icon: "🍳", name: "Cooking", href: "/discover?category=cooking", color: "from-yellow-100 to-amber-100", textColor: "text-yellow-900" },
-    { icon: "🧂", name: "Curing", href: "/discover?category=curing", color: "from-green-100 to-emerald-100", textColor: "text-green-900" },
-    { icon: "🥒", name: "Preserving", href: "/discover?category=preserving", color: "from-emerald-100 to-teal-100", textColor: "text-emerald-900" },
-    { icon: "🍰", name: "Desserts", href: "/discover?category=desserts", color: "from-pink-100 to-rose-100", textColor: "text-pink-900" },
+    { icon: "🍞", name: "Bread", href: "/discover?category=bread", color: "from-amber-400 to-amber-500", textColor: "text-white" },
+    { icon: "🎂", name: "Baking", href: "/discover?category=baking", color: "from-orange-400 to-yellow-500", textColor: "text-white" },
+    { icon: "🍳", name: "Cooking", href: "/discover?category=cooking", color: "from-red-400 to-orange-500", textColor: "text-white" },
+    { icon: "🧂", name: "Curing", href: "/discover?category=curing", color: "from-green-500 to-emerald-600", textColor: "text-white" },
+    { icon: "🥒", name: "Preserving", href: "/discover?category=preserving", color: "from-emerald-500 to-teal-600", textColor: "text-white" },
+    { icon: "🍰", name: "Desserts", href: "/discover?category=desserts", color: "from-pink-400 to-rose-500", textColor: "text-white" },
   ];
 
   return (
@@ -20,8 +20,8 @@ export default async function HomePage() {
       {/* Hero Section */}
       <section className="py-12 sm:py-20">
         <div className="max-w-4xl">
-          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-amber-900 mb-6 leading-tight">
-            Cook with <span className="bg-gradient-to-r from-amber-800 to-amber-700 bg-clip-text text-transparent">confidence</span>
+          <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-neutral-900 mb-6 leading-tight">
+            Cook with <span className="text-orange-600 font-black">confidence</span>
           </h1>
           <p className="text-lg sm:text-xl text-neutral-600 mb-8 max-w-2xl leading-relaxed">
             Focolare guides you through every recipe with automated timers, alerts, and smart scheduling. Just set when you want your dish ready—we&apos;ll tell you when to start.
@@ -79,9 +79,9 @@ export default async function HomePage() {
             <Link
               key={cat.name}
               href={cat.href}
-              className={`group relative overflow-hidden rounded-lg p-6 text-center transition-all hover:shadow-md hover:scale-105 bg-gradient-to-br ${cat.color} border border-neutral-300`}
+              className={`group relative overflow-hidden rounded-lg p-6 text-center transition-all hover:shadow-lg hover:scale-105 bg-gradient-to-br ${cat.color} border border-neutral-400 group-hover:border-neutral-500`}
             >
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition" />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition" />
               <div className="relative z-10">
                 <div className="text-5xl mb-3">{cat.icon}</div>
                 <div className={`text-base font-semibold ${cat.textColor} group-hover:opacity-80 transition`}>
