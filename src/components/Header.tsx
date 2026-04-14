@@ -7,50 +7,76 @@ export async function Header() {
   const session = await getServerSession();
   const logoSrc = getPublicLogoUrl();
   return (
-    <header className="border-b border-neutral-800 bg-neutral-950/80 backdrop-blur">
-      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-3">
+    <header className="sticky top-0 z-50 border-b border-neutral-800 bg-neutral-950/95 backdrop-blur-sm">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-4 py-4">
         <Link
           href="/"
           aria-label="Focolare home"
-          className="flex items-center gap-2.5 text-lg font-semibold tracking-tight text-amber-100"
+          className="flex items-center gap-3 shrink-0"
         >
-          <Image
-            src={logoSrc}
-            alt=""
-            width={40}
-            height={40}
-            priority
-            unoptimized
-            className="h-9 w-9 shrink-0 object-contain drop-shadow-[0_0_12px_rgba(251,146,60,0.25)]"
-          />
-          <span aria-hidden="true">Focolare</span>
+          <div className="relative">
+            <Image
+              src={logoSrc}
+              alt=""
+              width={40}
+              height={40}
+              priority
+              unoptimized
+              className="h-10 w-10 shrink-0 object-contain drop-shadow-[0_0_16px_rgba(249,115,22,0.35)]"
+            />
+          </div>
+          <div className="hidden flex-col sm:flex">
+            <span className="text-lg font-bold tracking-tight text-amber-100">Focolare</span>
+            <span className="text-xs text-neutral-500">Cook with Confidence</span>
+          </div>
         </Link>
-        <nav className="flex flex-wrap items-center justify-end gap-3 text-sm text-neutral-300">
-          <Link href="/discover" className="hover:text-white">
+
+        <nav className="flex flex-1 items-center justify-center gap-8 text-sm">
+          <Link
+            href="/discover"
+            className="text-neutral-400 transition hover:text-amber-100 font-medium"
+          >
             Discover
           </Link>
-          <Link href="/create/recipe" className="hover:text-white">
-            New recipe
+          <Link
+            href="/create/recipe"
+            className="text-neutral-400 transition hover:text-amber-100 font-medium"
+          >
+            Create
           </Link>
-          <Link href="/taxonomy/suggest" className="hover:text-white">
-            Suggest category
+          <Link
+            href="/taxonomy/suggest"
+            className="text-neutral-400 transition hover:text-amber-100 font-medium"
+          >
+            Suggest
           </Link>
+        </nav>
+
+        <div className="flex items-center gap-3">
           {session?.user ? (
-            <span className="text-neutral-400">{session.user.email}</span>
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center text-xs font-bold text-white">
+                {session.user.email?.[0].toUpperCase()}
+              </div>
+              <span className="hidden text-sm text-neutral-400 sm:block truncate max-w-[150px]">{session.user.email}</span>
+            </div>
           ) : (
             <>
-              <Link href="/sign-in" className="hover:text-white">
+              <Link
+                href="/sign-in"
+                className="hidden text-neutral-400 transition hover:text-amber-100 font-medium sm:block"
+              >
                 Sign in
               </Link>
               <Link
                 href="/sign-up"
-                className="rounded-full bg-amber-500/90 px-3 py-1 font-medium text-neutral-950 hover:bg-amber-400"
+                className="rounded-full bg-gradient-to-r from-orange-500 to-amber-500 px-4 py-2 text-sm font-semibold text-white hover:from-orange-600 hover:to-amber-600 transition shadow-lg shadow-orange-500/20"
               >
                 Sign up
               </Link>
             </>
           )}
-        </nav>
+        </div>
       </div>
     </header>
   );
