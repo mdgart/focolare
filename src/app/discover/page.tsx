@@ -37,9 +37,9 @@ export default async function DiscoverPage({
               name="q"
               defaultValue={q ?? ""}
               placeholder="Search by recipe name, ingredient, creator…"
-              className="w-full rounded-lg border border-neutral-700 bg-neutral-900 px-4 py-3 text-sm outline-none ring-amber-500/40 focus:ring-2 transition placeholder-neutral-600"
+              className="w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm text-neutral-900 outline-none ring-amber-500/40 focus:ring-2 transition placeholder-neutral-500"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-600">🔍</span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">🔍</span>
           </div>
           <button
             type="submit"
