@@ -34,58 +34,135 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
     );
   }
 
+  const totalDurationSeconds = steps.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
+  const totalDurationMinutes = Math.round(totalDurationSeconds / 60);
+
   return (
-    <article className="space-y-6">
-      <div>
-        <Link href={`/c/${ch.slug}`} className="text-sm text-amber-300 hover:underline">
-          {ch.title}
-        </Link>
-        <h1 className="mt-1 text-2xl font-semibold">{r.title}</h1>
-        {r.visibility === "members" ? (
-          <p className="mt-2 text-xs uppercase tracking-wide text-amber-200/80">Member recipe</p>
-        ) : null}
+    <article className="space-y-8 max-w-3xl">
+      {/* Header */}
+      <div className="border-b border-neutral-800 pb-8">
+        <div className="flex items-center gap-2 mb-3">
+          <Link href={`/c/${ch.slug}`} className="text-sm font-medium text-amber-700 hover:text-amber-800 transition">
+            {ch.title}
+          </Link>
+          {r.visibility === "members" && (
+            <span className="text-xs px-2 py-1 bg-amber-200 text-amber-900 rounded-full font-medium">
+              Member Only
+            </span>
+          )}
+        </div>
+        <h1 className="text-4xl font-bold text-neutral-900 mb-4 leading-tight">{r.title}</h1>
+        {r.description && (
+          <p className="text-lg text-neutral-700 max-w-2xl">{r.description}</p>
+        )}
       </div>
-      {r.description ? <p className="text-neutral-300">{r.description}</p> : null}
-      <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase text-neutral-500">Ingredients</h2>
-        <ul className="list-inside list-disc space-y-1 text-neutral-200">
-          {(r.ingredients ?? []).map((ing, i) => (
-            <li key={i}>
-              {ing.amount ? `${ing.amount} ` : ""}
-              {ing.unit ? `${ing.unit} ` : ""}
-              {ing.name}
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section>
-        <h2 className="mb-2 text-sm font-semibold uppercase text-neutral-500">Steps</h2>
-        <ol className="space-y-3">
-          {steps.map((s, idx) => (
-            <li key={s.id} className="rounded-lg border border-neutral-800 bg-neutral-900/40 p-3">
-              <div className="text-xs text-neutral-500">Step {idx + 1}</div>
-              <div className="font-medium">{s.title}</div>
-              <p className="mt-1 text-sm text-neutral-300">{s.instruction}</p>
-              {s.durationSeconds != null && s.durationSeconds > 0 ? (
-                <p className="mt-2 text-xs text-amber-200/90">Timer: {s.durationSeconds}s</p>
-              ) : null}
-              {idx > 0 && s.offsetFromPrevious > 0 ? (
-                <p className="text-xs text-neutral-500">After previous: wait {s.offsetFromPrevious}s</p>
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      </section>
-      {session?.user ? (
-        <StartCookForm recipeId={r.id} />
-      ) : (
-        <p className="text-sm text-neutral-500">
-          <Link href="/sign-in" className="text-amber-300 underline">
-            Sign in
-          </Link>{" "}
-          to start cook mode.
-        </p>
+
+      {/* Quick Stats */}
+      {totalDurationMinutes > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className="card p-4">
+            <div className="text-xs text-neutral-600 uppercase font-medium mb-1">Total Time</div>
+            <div className="text-2xl font-bold text-amber-700">{totalDurationMinutes}m</div>
+          </div>
+          <div className="card p-4">
+            <div className="text-xs text-neutral-600 uppercase font-medium mb-1">Steps</div>
+            <div className="text-2xl font-bold text-amber-700">{steps.length}</div>
+          </div>
+          <div className="card p-4">
+            <div className="text-xs text-neutral-600 uppercase font-medium mb-1">Ingredients</div>
+            <div className="text-2xl font-bold text-amber-700">{r.ingredients?.length ?? 0}</div>
+          </div>
+        </div>
       )}
+
+      {/* Ingredients Section */}
+      <section>
+        <h2 className="text-2xl font-bold text-neutral-900 mb-6">Ingredients</h2>
+        <div className="card divide-y divide-neutral-700">
+          {(r.ingredients ?? []).length === 0 ? (
+            <div className="p-6 text-center text-neutral-600">
+              <p>No ingredients listed for this recipe.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-neutral-300">
+              {(r.ingredients ?? []).map((ing, i) => (
+                <li key={i} className="p-4 hover:bg-neutral-100 transition">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      className="h-5 w-5 rounded cursor-pointer accent-amber-700"
+                      aria-label={`Check off ${ing.name}`}
+                    />
+                    <span className="text-neutral-900">
+                      <span className="font-medium">{ing.amount}</span>
+                      {ing.unit && <span className="text-neutral-600"> {ing.unit}</span>}
+                      <span className="ml-2">{ing.name}</span>
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      {/* Steps Section */}
+      <section>
+        <h2 className="text-2xl font-bold text-neutral-900 mb-6">Steps</h2>
+        <div className="space-y-4">
+          {steps.length === 0 ? (
+            <div className="card p-6 text-center text-neutral-600">
+              <p>No steps defined for this recipe.</p>
+            </div>
+          ) : (
+            steps.map((s, idx) => {
+              const stepDuration = s.durationSeconds ? Math.round(s.durationSeconds / 60) : null;
+              return (
+                <div key={s.id} className="card p-6 border-l-4 border-l-amber-700">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <span className="inline-flex items-center justify-center h-8 w-8 rounded-full bg-amber-100 text-amber-800 font-bold text-sm">
+                          {idx + 1}
+                        </span>
+                        <h3 className="text-lg font-semibold text-neutral-900">{s.title}</h3>
+                      </div>
+                      <p className="text-neutral-700 mt-3 leading-relaxed">{s.instruction}</p>
+                      {stepDuration && (
+                        <div className="mt-4 inline-flex items-center gap-2 bg-amber-100 border border-amber-300 rounded-lg px-3 py-2">
+                          <span className="text-xl">⏱</span>
+                          <span className="text-sm font-medium text-amber-800">
+                            {stepDuration}m timer
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </section>
+
+      {/* Cook Mode CTA */}
+      <div className="sticky bottom-4 sm:relative pt-8 border-t border-neutral-300">
+        {session?.user ? (
+          <StartCookForm recipeId={r.id} />
+        ) : (
+          <div className="bg-gradient-to-r from-amber-100 to-yellow-100 border border-amber-300 rounded-lg p-6 text-center">
+            <p className="text-neutral-800 mb-4">
+              Sign in to start cook mode with timers and alerts.
+            </p>
+            <Link
+              href="/sign-in"
+              className="btn btn-primary font-semibold"
+            >
+              Sign In to Cook
+            </Link>
+          </div>
+        )}
+      </div>
     </article>
   );
 }

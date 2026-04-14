@@ -24,10 +24,13 @@ export async function generateMetadata(): Promise<Metadata> {
       icon: [{ url: logo, type: "image/png" }],
       apple: [{ url: logo, type: "image/png" }],
     },
-    themeColor: "#1a0a06",
     appleWebApp: { capable: true, title: "Focolare", statusBarStyle: "black-translucent" },
   };
 }
+
+export const viewport = {
+  themeColor: "#0f0f0f",
+};
 
 export default function RootLayout({
   children,
@@ -44,7 +47,7 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <Header />
-        <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">{children}</main>
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-4 sm:px-6 lg:px-8">{children}</main>
       </body>
     </html>
   );
