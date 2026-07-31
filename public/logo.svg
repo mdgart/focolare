@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Focolare app icon: logo-mark.svg scaled to 0.68 about the centre and set on a cream tile.
+       Keep the two files in step — this one is only for favicons and app icons, where the
+       tile supplies the background. For in-app UI use logo-mark.svg. -->
+  <rect width="512" height="512" rx="112" fill="#faf5ec"/>
+  <!-- hearth arch -->
+  <path d="M142 365 V261 a114 114 0 0 1 228 0 V365"
+        fill="none" stroke="#7c2d12" stroke-width="23" stroke-linecap="round"/>
+  <!-- hearth floor -->
+  <path d="M109 365 H403" fill="none" stroke="#7c2d12" stroke-width="23" stroke-linecap="round"/>
+  <!-- flame: outer -->
+  <path d="M256 190
+           C 286 227, 306 251, 306 278
+           A 50 50 0 0 1 206 278
+           C 206 251, 226 227, 256 190 Z"
+        fill="#c98f2c"/>
+  <!-- flame: inner -->
+  <path d="M256 237
+           C 271 258, 281 272, 281 287
+           A 25 25 0 0 1 231 287
+           C 231 272, 241 258, 256 237 Z"
+        fill="#9a3412"/>
+</svg>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { cookSession, recipe, recipeStep } from "@/db/schema";
+import { cookSession, recipe, recipeStep, scheduledStepEvent } from "@/db/schema";
 import { getServerSession } from "@/lib/session";
 import { buildForwardTimeline, type StepInput } from "@/lib/cook-schedule";
 import { CookSessionClient } from "./cook-session-client";
@@ -45,12 +45,39 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
     durationSeconds: t.durationSeconds,
   }));
 
+  const stepIdx = Math.min(Math.max(0, cs.currentStepIndex), Math.max(0, steps.length - 1));
+  const currentDbStep = steps[stepIdx];
+
+  const [pendingTimer] = await db
+    .select({ fireAt: scheduledStepEvent.fireAt })
+    .from(scheduledStepEvent)
+    .where(
+      and(
+        eq(scheduledStepEvent.cookSessionId, cs.id),
+        eq(scheduledStepEvent.stepIndex, stepIdx),
+        eq(scheduledStepEvent.status, "pending"),
+      ),
+    )
+    .limit(1);
+
+  const stepDuration = currentDbStep?.durationSeconds ?? 0;
+  const initialTimerArmedAtMs =
+    pendingTimer && stepDuration > 0
+      ? pendingTimer.fireAt.getTime() - stepDuration * 1000
+      : null;
+
   return (
     <div className="space-y-4">
-      <Link href={`/recipe/${r.id}`} className="text-sm text-amber-300 hover:underline">
+      <Link href={`/recipe/${r.id}`} className="text-sm font-medium text-amber-900 hover:text-amber-950 hover:underline">
         ← {r.title}
       </Link>
-      <CookSessionClient cookSessionId={cs.id} recipeTitle={r.title} timeline={timelineJson} />
+      <CookSessionClient
+        cookSessionId={cs.id}
+        recipeTitle={r.title}
+        timeline={timelineJson}
+        initialStepIndex={stepIdx}
+        initialTimerArmedAtMs={initialTimerArmedAtMs}
+      />
     </div>
   );
 }

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Focolare mark, edge-to-edge (no background tile) for in-app UI.
+       Drawn content is centred in the viewBox so it aligns optically with adjacent text.
+       The padded/tiled variant lives in logo.svg and is used for favicons and app icons. -->
+  <!-- hearth arch -->
+  <path d="M88 416 V264 a168 168 0 0 1 336 0 V416"
+        fill="none" stroke="#7c2d12" stroke-width="34" stroke-linecap="round"/>
+  <!-- hearth floor -->
+  <path d="M40 416 H472" fill="none" stroke="#7c2d12" stroke-width="34" stroke-linecap="round"/>
+  <!-- flame: outer -->
+  <path d="M256 159
+           C 300 214, 330 249, 330 289
+           A 74 74 0 0 1 182 289
+           C 182 249, 212 214, 256 159 Z"
+        fill="#c98f2c"/>
+  <!-- flame: inner -->
+  <path d="M256 228
+           C 278 259, 293 279, 293 302
+           A 37 37 0 0 1 219 302
+           C 219 279, 234 259, 256 228 Z"
+        fill="#9a3412"/>
+</svg>

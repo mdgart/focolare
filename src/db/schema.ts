@@ -16,12 +16,21 @@ import { relations, sql } from "drizzle-orm";
 
 /* ---------- Better Auth (snake_case columns, adapter camelCase: false) ---------- */
 
+/** Billing tier. `plan` is the single switch a payment provider flips later. */
+export const userPlanEnum = pgEnum("user_plan", ["free", "pro"]);
+
 export const user = pgTable("user", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   email: text("email").notNull().unique(),
   emailVerified: boolean("email_verified").notNull().default(false),
   image: text("image"),
+  /** E.164 for SMS cook-timer alerts (e.g. +14155552671). */
+  phoneE164: text("phone_e164"),
+  notifyCookTimerEmail: boolean("notify_cook_timer_email").notNull().default(false),
+  notifyCookTimerSms: boolean("notify_cook_timer_sms").notNull().default(false),
+  plan: userPlanEnum("plan").notNull().default("free"),
+  hideHomeIntro: boolean("hide_home_intro").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
@@ -82,7 +91,13 @@ export const taxonomySuggestionStatusEnum = pgEnum("taxonomy_suggestion_status",
   "rejected",
 ]);
 
-export const recipeVisibilityEnum = pgEnum("recipe_visibility", ["public", "members"]);
+export const recipeVisibilityEnum = pgEnum("recipe_visibility", ["public", "private"]);
+
+/** Safety review state. `flagged` recipes stay out of public listings until an admin clears them. */
+export const moderationStatusEnum = pgEnum("moderation_status", ["approved", "flagged", "rejected"]);
+
+/** How ingredient amounts in this recipe are intended to be read (metric vs US cups/spoons). */
+export const ingredientMeasureSystemEnum = pgEnum("ingredient_measure_system", ["metric", "us"]);
 
 export const mediaKindEnum = pgEnum("media_kind", ["image", "video"]);
 
@@ -117,11 +132,14 @@ export const taxonomyCategory = pgTable(
     parentId: uuid("parent_id").references((): AnyPgColumn => taxonomyCategory.id),
     sortOrder: integer("sort_order").notNull().default(0),
     isActive: boolean("is_active").notNull().default(true),
+    /** Set when this row is a user-proposed placeholder until an admin activates it. */
+    proposerUserId: text("proposer_user_id").references(() => user.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index("taxonomy_category_parent_idx").on(t.parentId),
     index("taxonomy_category_active_idx").on(t.isActive),
+    index("taxonomy_category_proposer_idx").on(t.proposerUserId),
   ],
 );
 
@@ -134,6 +152,10 @@ export const taxonomySuggestion = pgTable(
     }),
     proposedLabel: text("proposed_label").notNull(),
     parentCategoryId: uuid("parent_category_id").references(() => taxonomyCategory.id, {
+      onDelete: "set null",
+    }),
+    /** When set, approval activates this category instead of inserting a duplicate. */
+    placeholderCategoryId: uuid("placeholder_category_id").references(() => taxonomyCategory.id, {
       onDelete: "set null",
     }),
     synonyms: text("synonyms"),
@@ -157,6 +179,21 @@ export const mediaAsset = pgTable("media_asset", {
   height: integer("height"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** One row per billable AI call, so monthly quotas can be counted and audited. */
+export const aiUsageEvent = pgTable(
+  "ai_usage_event",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    /** "recipe" covers import + generate (cheap text); "image" is cover generation (costly). */
+    kind: text("kind").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("ai_usage_user_created_idx").on(t.userId, t.createdAt)],
+);
 
 /* ---------- Channels & recipes ---------- */
 
@@ -197,8 +234,21 @@ export const recipe = pgTable(
       .$type<{ amount?: string; unit?: string; name: string }[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    ingredientMeasureSystem: ingredientMeasureSystemEnum("ingredient_measure_system")
+      .notNull()
+      .default("metric"),
     visibility: recipeVisibilityEnum("visibility").notNull().default("public"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    coverMediaId: uuid("cover_media_id").references(() => mediaAsset.id, { onDelete: "set null" }),
+    /** BCP-47 code for the language the recipe is written in, e.g. "en", "it". */
+    language: text("language").notNull().default("en"),
+    moderationStatus: moderationStatusEnum("moderation_status").notNull().default("approved"),
+    /** Categories and scores that tripped the safety check, for the admin queue. */
+    moderationFlags: jsonb("moderation_flags")
+      .$type<{ category: string; score: number }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    moderatedAt: timestamp("moderated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -207,6 +257,8 @@ export const recipe = pgTable(
     index("recipe_channel_idx").on(t.channelId),
     index("recipe_visibility_idx").on(t.visibility),
     index("recipe_taxonomy_idx").on(t.taxonomyCategoryId),
+    index("recipe_cover_media_idx").on(t.coverMediaId),
+    index("recipe_moderation_idx").on(t.moderationStatus),
   ],
 );
 
@@ -223,10 +275,12 @@ export const recipeStep = pgTable(
     durationSeconds: integer("duration_seconds"),
     offsetFromPrevious: integer("offset_from_previous").notNull().default(0),
     parallelGroupId: integer("parallel_group_id"),
+    imageMediaId: uuid("image_media_id").references(() => mediaAsset.id, { onDelete: "set null" }),
   },
   (t) => [
     uniqueIndex("recipe_step_position_uidx").on(t.recipeId, t.position),
     index("recipe_step_recipe_idx").on(t.recipeId),
+    index("recipe_step_image_media_idx").on(t.imageMediaId),
   ],
 );
 
@@ -242,6 +296,33 @@ export const recipeMedia = pgTable(
     sortOrder: integer("sort_order").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.recipeId, t.mediaId] })],
+);
+
+/** Normalized tags for recipes (many-to-many via recipe_tag). */
+export const tag = pgTable(
+  "tag",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    slug: text("slug").notNull().unique(),
+    label: text("label").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+);
+
+export const recipeTag = pgTable(
+  "recipe_tag",
+  {
+    recipeId: uuid("recipe_id")
+      .notNull()
+      .references(() => recipe.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id")
+      .notNull()
+      .references(() => tag.id, { onDelete: "cascade" }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.recipeId, t.tagId] }),
+    index("recipe_tag_tag_idx").on(t.tagId),
+  ],
 );
 
 /* ---------- Social ---------- */

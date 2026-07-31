@@ -1,34 +1,40 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
-import { channelSubscription, recipe } from "@/db/schema";
+import { channel, recipe } from "@/db/schema";
 
+/**
+ * Who may open a recipe.
+ *
+ * Two independent gates:
+ *   - unpublished (draft) — the author's work in progress, owner-only whatever the visibility says
+ *   - private          — finished but kept to the author's own library
+ */
 export async function canViewRecipe(opts: {
   userId: string | null;
   recipeId: string;
-}): Promise<{ allowed: boolean; reason?: "members_only" }> {
+}): Promise<{ allowed: boolean; reason?: "private" | "draft" }> {
   const [row] = await db
     .select({
       id: recipe.id,
       visibility: recipe.visibility,
+      publishedAt: recipe.publishedAt,
       channelId: recipe.channelId,
     })
     .from(recipe)
     .where(eq(recipe.id, opts.recipeId))
     .limit(1);
   if (!row) return { allowed: false };
-  if (row.visibility === "public") return { allowed: true };
-  if (!opts.userId) return { allowed: false, reason: "members_only" };
-  const [sub] = await db
-    .select({ id: channelSubscription.id })
-    .from(channelSubscription)
-    .where(
-      and(
-        eq(channelSubscription.channelId, row.channelId),
-        eq(channelSubscription.userId, opts.userId),
-        eq(channelSubscription.demoActive, true),
-      ),
-    )
+
+  const isDraft = row.publishedAt === null;
+  if (row.visibility === "public" && !isDraft) return { allowed: true };
+
+  // Everything else needs to be the owner.
+  if (!opts.userId) return { allowed: false, reason: isDraft ? "draft" : "private" };
+  const [ch] = await db
+    .select({ ownerUserId: channel.ownerUserId })
+    .from(channel)
+    .where(eq(channel.id, row.channelId))
     .limit(1);
-  if (!sub) return { allowed: false, reason: "members_only" };
-  return { allowed: true };
+  if (ch?.ownerUserId === opts.userId) return { allowed: true };
+  return { allowed: false, reason: isDraft ? "draft" : "private" };
 }

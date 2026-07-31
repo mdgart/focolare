@@ -3,21 +3,13 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { taxonomyCategory, taxonomySuggestion } from "@/db/schema";
+import { isAdminSessionUser } from "@/lib/admin-auth";
 import { slugify } from "@/lib/slug";
 import { getServerSession } from "@/lib/session";
 
-function isAdmin(email: string | undefined | null) {
-  if (!email) return false;
-  const list = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  return list.includes(email.toLowerCase());
-}
-
 export async function approveTaxonomySuggestionAction(suggestionId: string) {
   const session = await getServerSession();
-  if (!session?.user?.email || !isAdmin(session.user.email)) {
+  if (!session?.user?.id || !(await isAdminSessionUser(session.user))) {
     return { error: "Forbidden" };
   }
   const [sug] = await db
@@ -26,6 +18,26 @@ export async function approveTaxonomySuggestionAction(suggestionId: string) {
     .where(eq(taxonomySuggestion.id, suggestionId))
     .limit(1);
   if (!sug) return { error: "Not found" };
+
+  if (sug.placeholderCategoryId) {
+    const slug = `${slugify(sug.proposedLabel)}-${suggestionId.slice(0, 8)}`;
+    await db
+      .update(taxonomyCategory)
+      .set({
+        slug,
+        label: sug.proposedLabel,
+        parentId: sug.parentCategoryId,
+        isActive: true,
+        proposerUserId: null,
+      })
+      .where(eq(taxonomyCategory.id, sug.placeholderCategoryId));
+    await db
+      .update(taxonomySuggestion)
+      .set({ status: "approved", moderatorNote: `Activated category ${sug.placeholderCategoryId}` })
+      .where(eq(taxonomySuggestion.id, suggestionId));
+    return { ok: true as const, categoryId: sug.placeholderCategoryId };
+  }
+
   const slug = slugify(sug.proposedLabel);
   const [cat] = await db
     .insert(taxonomyCategory)

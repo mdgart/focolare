@@ -1,20 +1,59 @@
 "use client";
 
 import type { FormEvent } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
 import { startCookSessionAction } from "@/actions/cook";
+import { formField } from "@/lib/form-styles";
+import type { StepInput } from "@/lib/cook-schedule";
+import { previewCookSchedule } from "@/lib/cook-schedule";
 
-export function StartCookForm({ recipeId }: { recipeId: string }) {
+function formatLocalDateTime(ms: number): string {
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(ms));
+}
+
+export function StartCookForm(props: { recipeId: string; stepInputs: StepInput[] }) {
   const router = useRouter();
   const [readyBy, setReadyBy] = useState("");
   const [pending, setPending] = useState(false);
+  /** Avoid SSR vs client mismatch: preview uses `Date.now()` and must not render until mounted. */
+  const [mounted, setMounted] = useState(false);
+  /** Bumps on an interval so “finish around …” stays roughly current when not using ready-by. */
+  const [clock, setClock] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const id = window.setInterval(() => setClock((c) => c + 1), 30_000);
+    return () => window.clearInterval(id);
+  }, [mounted]);
+
+  const invalidReadyBy = Boolean(
+    readyBy.trim() && props.stepInputs.length > 0 && Number.isNaN(new Date(readyBy).getTime()),
+  );
+
+  const preview = useMemo(() => {
+    if (!mounted) return null;
+    if (props.stepInputs.length === 0) return null;
+    if (readyBy.trim() && Number.isNaN(new Date(readyBy).getTime())) return null;
+    return previewCookSchedule(props.stepInputs, {
+      nowMs: Date.now(),
+      readyByLocal: readyBy || null,
+    });
+  }, [mounted, props.stepInputs, readyBy, clock]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setPending(true);
     const iso = readyBy ? new Date(readyBy).toISOString() : null;
-    const res = await startCookSessionAction({ recipeId, targetReadyAtISO: iso });
+    const res = await startCookSessionAction({ recipeId: props.recipeId, targetReadyAtISO: iso });
     setPending(false);
     if ("error" in res) {
       window.alert(res.error);
@@ -24,22 +63,137 @@ export function StartCookForm({ recipeId }: { recipeId: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-3 rounded-xl border border-neutral-800 bg-neutral-900/50 p-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Cook mode</h2>
-      <label className="block text-sm text-neutral-400">
+    <form onSubmit={onSubmit} className="space-y-4 rounded-3xl border border-sand bg-surface p-6">
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-terracotta">
+          Cook mode
+        </h2>
+        <p className="mt-2 font-display text-xl font-semibold text-ink">
+          Cook this on your schedule
+        </p>
+        <ul className="mt-3 space-y-2 text-xs leading-relaxed text-ink-soft">
+          <li>
+            <strong className="text-ink">Leave the time empty</strong> — we estimate when
+            you&apos;ll be done if you start now.
+          </li>
+          <li>
+            <strong className="text-ink">Pick a &ldquo;ready by&rdquo; time</strong> — we work
+            backwards and tell you when to start (if it&apos;s no longer possible, we start from
+            now instead).
+          </li>
+          <li>
+            Timer alerts by email or SMS? Set preferences on{" "}
+            <Link
+              href="/account"
+              className="font-semibold text-terracotta underline hover:text-terracotta-strong"
+            >
+              Account
+            </Link>
+            .
+          </li>
+        </ul>
+      </div>
+
+      <label className="block text-sm font-medium text-ink-soft">
         Ready by (optional, local time)
         <input
           type="datetime-local"
           value={readyBy}
           onChange={(e) => setReadyBy(e.target.value)}
-          className="mt-1 w-full rounded-lg border border-neutral-700 bg-neutral-950 px-3 py-2 text-sm text-neutral-100"
+          className={`mt-1.5 ${formField}`}
         />
       </label>
-      <button
-        type="submit"
-        disabled={pending}
-        className="w-full rounded-lg bg-amber-500 py-2 text-sm font-semibold text-neutral-950 hover:bg-amber-400 disabled:opacity-50"
-      >
+
+      {invalidReadyBy ? (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">
+          That date and time don&apos;t look valid — fix the field to see a schedule preview.
+        </p>
+      ) : props.stepInputs.length === 0 ? (
+        <p className="text-sm text-ink-muted">Add steps with durations to see a ready-time estimate.</p>
+      ) : !mounted ? (
+        <p className="text-sm text-ink-muted" aria-live="polite">
+          Calculating schedule from your device clock…
+        </p>
+      ) : preview ? (
+        <div className="rounded-xl bg-terracotta-tint/70 px-4 py-3.5 text-sm text-ink">
+          {preview.kind === "start_now" ? (
+            <p>
+              <span className="font-semibold text-terracotta-strong">If you start now:</span>{" "}
+              estimated done around{" "}
+              <time
+                className="font-semibold tabular-nums text-terracotta-strong"
+                dateTime={new Date(preview.readyAtMs).toISOString()}
+              >
+                {formatLocalDateTime(preview.readyAtMs)}
+              </time>
+              .
+            </p>
+          ) : preview.kind === "target_ok" ? (
+            <div className="space-y-2">
+              <p>
+                <span className="font-semibold text-terracotta-strong">Your target:</span> be ready
+                by{" "}
+                <time
+                  className="font-semibold tabular-nums text-terracotta-strong"
+                  dateTime={new Date(preview.targetReadyMs).toISOString()}
+                >
+                  {formatLocalDateTime(preview.targetReadyMs)}
+                </time>
+                .
+              </p>
+              <p>
+                <span className="font-semibold text-terracotta-strong">To hit that:</span> start
+                step 1 around{" "}
+                <time
+                  className="font-semibold tabular-nums text-terracotta-strong"
+                  dateTime={new Date(preview.plannedStartMs).toISOString()}
+                >
+                  {formatLocalDateTime(preview.plannedStartMs)}
+                </time>{" "}
+                — then you should finish around{" "}
+                <time
+                  className="font-semibold tabular-nums text-terracotta-strong"
+                  dateTime={new Date(preview.readyAtMs).toISOString()}
+                >
+                  {formatLocalDateTime(preview.readyAtMs)}
+                </time>
+                .
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p>
+                <span className="font-semibold text-terracotta-strong">
+                  That &ldquo;ready by&rdquo; time is too soon
+                </span>{" "}
+                for the total time in this recipe — you would have needed to start around{" "}
+                <time
+                  className="font-semibold tabular-nums text-terracotta-strong"
+                  dateTime={new Date(preview.plannedStartMs).toISOString()}
+                >
+                  {formatLocalDateTime(preview.plannedStartMs)}
+                </time>
+                .
+              </p>
+              <p>
+                <span className="font-semibold text-terracotta-strong">
+                  If you start now instead:
+                </span>{" "}
+                estimated done around{" "}
+                <time
+                  className="font-semibold tabular-nums text-terracotta-strong"
+                  dateTime={new Date(preview.readyAtMs).toISOString()}
+                >
+                  {formatLocalDateTime(preview.readyAtMs)}
+                </time>
+                .
+              </p>
+            </div>
+          )}
+        </div>
+      ) : null}
+
+      <button type="submit" disabled={pending} className="btn btn-primary w-full disabled:opacity-50">
         {pending ? "Starting…" : "Start cooking"}
       </button>
     </form>
