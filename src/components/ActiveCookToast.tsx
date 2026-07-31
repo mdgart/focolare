@@ -1,32 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { setLocalStorageValue, useLocalStorageValue } from "@/lib/use-local-storage-value";
 
 const STORAGE_KEY = "focolare.dismissCookSessionBanner";
 
 export function ActiveCookToast({ sessionId }: { sessionId: string }) {
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    try {
-      const dismissed = localStorage.getItem(STORAGE_KEY);
-      setVisible(dismissed !== sessionId);
-    } catch {
-      setVisible(true);
-    }
-  }, [sessionId]);
+  const dismissedSession = useLocalStorageValue(STORAGE_KEY);
 
   function dismiss() {
-    try {
-      localStorage.setItem(STORAGE_KEY, sessionId);
-    } catch {
-      /* ignore */
-    }
-    setVisible(false);
+    setLocalStorageValue(STORAGE_KEY, sessionId);
   }
 
-  if (!visible) return null;
+  // `undefined` means we haven't read storage yet — stay hidden rather than
+  // flashing a banner the user already dismissed.
+  if (dismissedSession === undefined || dismissedSession === sessionId) return null;
 
   return (
     <div

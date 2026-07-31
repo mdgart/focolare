@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { completePreparationAction } from "@/actions/preparations";
+import { useNowMs } from "@/lib/use-now";
 import type { OngoingPreparation } from "@/actions/preparations";
 import { formatDurationClock } from "@/lib/format-duration";
 
@@ -24,6 +25,8 @@ function statusLine(item: OngoingPreparation, nowMs: number): string {
   const startedAt = coerceDate(item.startedAt);
 
   if (timerEndsAt) {
+    // nowMs is 0 until the clock subscribes; show the end time without a countdown.
+    if (nowMs === 0) return `Timer · ends ${formatWhen(timerEndsAt)}`;
     const leftSec = Math.max(0, Math.ceil((timerEndsAt.getTime() - nowMs) / 1000));
     if (leftSec > 0) {
       return `Timer · ${formatDurationClock(leftSec)} left · ends ${formatWhen(timerEndsAt)}`;
@@ -42,7 +45,8 @@ function statusLine(item: OngoingPreparation, nowMs: number): string {
 export function PreparationCard({ item }: { item: OngoingPreparation }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
-  const nowMs = Date.now();
+  // Ticks every second so the countdown actually counts down; 0 until mounted.
+  const nowMs = useNowMs(1_000);
 
   async function onComplete() {
     if (!window.confirm(`Mark "${item.recipeTitle}" as completed and remove it from your list?`)) return;

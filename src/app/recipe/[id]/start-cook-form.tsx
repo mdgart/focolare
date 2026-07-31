@@ -2,12 +2,13 @@
 
 import type { FormEvent } from "react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { startCookSessionAction } from "@/actions/cook";
 import { formField } from "@/lib/form-styles";
 import type { StepInput } from "@/lib/cook-schedule";
 import { previewCookSchedule } from "@/lib/cook-schedule";
+import { useNowMs } from "@/lib/use-now";
 
 function formatLocalDateTime(ms: number): string {
   return new Intl.DateTimeFormat(undefined, {
@@ -20,20 +21,13 @@ export function StartCookForm(props: { recipeId: string; stepInputs: StepInput[]
   const router = useRouter();
   const [readyBy, setReadyBy] = useState("");
   const [pending, setPending] = useState(false);
-  /** Avoid SSR vs client mismatch: preview uses `Date.now()` and must not render until mounted. */
-  const [mounted, setMounted] = useState(false);
-  /** Bumps on an interval so “finish around …” stays roughly current when not using ready-by. */
-  const [clock, setClock] = useState(0);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted) return;
-    const id = window.setInterval(() => setClock((c) => c + 1), 30_000);
-    return () => window.clearInterval(id);
-  }, [mounted]);
+  /**
+   * Wall clock for the estimate, ticking every 30s so “finish around …” stays
+   * current. It is 0 until mounted, which doubles as the guard that kept a
+   * server-time preview from causing an SSR/client mismatch.
+   */
+  const nowMs = useNowMs(30_000);
+  const mounted = nowMs !== 0;
 
   const invalidReadyBy = Boolean(
     readyBy.trim() && props.stepInputs.length > 0 && Number.isNaN(new Date(readyBy).getTime()),
@@ -44,10 +38,10 @@ export function StartCookForm(props: { recipeId: string; stepInputs: StepInput[]
     if (props.stepInputs.length === 0) return null;
     if (readyBy.trim() && Number.isNaN(new Date(readyBy).getTime())) return null;
     return previewCookSchedule(props.stepInputs, {
-      nowMs: Date.now(),
+      nowMs,
       readyByLocal: readyBy || null,
     });
-  }, [mounted, props.stepInputs, readyBy, clock]);
+  }, [mounted, nowMs, props.stepInputs, readyBy]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();

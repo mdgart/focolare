@@ -53,7 +53,9 @@ export function TranslateRecipeButton({
   sourceLanguage: string;
   sourceLabel: string;
 }) {
-  const [state, setState] = useState<State>("checking");
+  // Defaults describe the unsupported case, so the effect never has to set state
+  // synchronously to express it — it only reports back once the async check lands.
+  const [state, setState] = useState<State>("idle");
   const [supported, setSupported] = useState(false);
   const [target, setTarget] = useState("en");
   const [progress, setProgress] = useState(0);
@@ -64,19 +66,17 @@ export function TranslateRecipeButton({
     const to = baseLanguage(navigator.language || "en");
     const from = baseLanguage(sourceLanguage);
 
-    if (!api || from === to) {
-      setSupported(false);
-      setState("idle");
-      return;
-    }
-    setTarget(to);
+    // No API, or the recipe is already in the reader's language — nothing to offer.
+    if (!api || from === to) return;
 
     withTimeout(api.availability({ sourceLanguage: from, targetLanguage: to }), 3000)
       .then((availability) => {
         if (cancelled) return;
         // "unavailable" means the pair isn't offered; "timeout" means the build
         // advertises the API but doesn't answer — treat both as unsupported.
-        setSupported(availability !== "unavailable" && availability !== "timeout");
+        if (availability === "unavailable" || availability === "timeout") return;
+        setTarget(to);
+        setSupported(true);
         setState("ready");
       })
       .catch(() => {
