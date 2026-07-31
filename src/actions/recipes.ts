@@ -1,10 +1,10 @@
 "use server";
 
-import { and, asc, desc, eq, exists, getTableColumns, ilike, inArray, isNotNull, or } from "drizzle-orm";
+import { and, asc, desc, eq, exists, getTableColumns, ilike, inArray, isNotNull, notExists, or } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { channel, mediaAsset, recipe, recipeStep, recipeTag, tag, taxonomyCategory } from "@/db/schema";
+import { channel, mediaAsset, recipe, recipeStep, recipeTag, tag, taxonomyCategory, user } from "@/db/schema";
 import { isAdminSessionUser } from "@/lib/admin-auth";
 import { getOrCreateChannelForUser } from "@/lib/ensure-channel";
 import { normalizeLanguage } from "@/lib/languages";
@@ -48,6 +48,13 @@ export async function listPublishedRecipes(opts?: {
   const visibility = eq(recipe.visibility, "public");
   /** Anything the safety check flagged stays out of public listings until an admin clears it. */
   const safe = eq(recipe.moderationStatus, "approved");
+  /** Blocked accounts disappear from public view without their content being deleted. */
+  const ownerActive = notExists(
+    db
+      .select({ id: user.id })
+      .from(user)
+      .where(and(eq(user.id, channel.ownerUserId), isNotNull(user.blockedAt))),
+  );
   const tax = taxId ? inArray(recipe.taxonomyCategoryId, await activeCategoryIdsForTaxonomyFilter(taxId)) : undefined;
   const tagExists =
     tagSlug && tagSlug.length > 0
@@ -63,7 +70,7 @@ export async function listPublishedRecipes(opts?: {
     q && q.length > 0
       ? or(ilike(recipe.title, `%${q}%`), ilike(recipe.description, `%${q}%`))
       : undefined;
-  const whereClause = and(published, visibility, safe, search, tax, tagExists);
+  const whereClause = and(published, visibility, safe, ownerActive, search, tax, tagExists);
   return db
     .select({
       ...getTableColumns(recipe),

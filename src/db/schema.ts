@@ -30,6 +30,10 @@ export const user = pgTable("user", {
   notifyCookTimerEmail: boolean("notify_cook_timer_email").notNull().default(false),
   notifyCookTimerSms: boolean("notify_cook_timer_sms").notNull().default(false),
   plan: userPlanEnum("plan").notNull().default("free"),
+  /** Set when an admin blocks the account; null means active. Their content is hidden, not deleted. */
+  blockedAt: timestamp("blocked_at", { withTimezone: true }),
+  /** Shown to admins in the user list; never surfaced publicly. */
+  blockedReason: text("blocked_reason"),
   hideHomeIntro: boolean("hide_home_intro").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

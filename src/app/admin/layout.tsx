@@ -30,6 +30,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         <AdminTab href="/admin/moderation" badge={pendingReview}>
           Moderation
         </AdminTab>
+        <AdminTab href="/admin/users">People</AdminTab>
       </nav>
 
       {children}
