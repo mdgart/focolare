@@ -74,6 +74,9 @@ export async function POST(req: Request) {
     return Response.json({ media: row });
   } catch (e) {
     console.error("[photos] import failed:", e);
-    return Response.json({ error: "Couldn't import that photo — try again." }, { status: 502 });
+    return Response.json(
+      { error: (e as Error).message || "Couldn't import that photo — try again." },
+      { status: 502 },
+    );
   }
 }

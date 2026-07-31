@@ -52,13 +52,31 @@ export async function storeFile(opts: {
   const key = opts.prefix ? `${opts.prefix}/${name}` : name;
 
   if (usingBlobStorage()) {
-    const blob = await put(key, opts.data, {
-      access: "public",
-      contentType: opts.contentType,
-      // Our key is already unique; without this Blob appends its own suffix.
-      addRandomSuffix: false,
-    });
-    return { storageKey: blob.pathname, publicUrl: blob.url };
+    try {
+      const blob = await put(key, opts.data, {
+        access: "public",
+        contentType: opts.contentType,
+        // Our key is already unique; without this Blob appends its own suffix.
+        addRandomSuffix: false,
+      });
+      return { storageKey: blob.pathname, publicUrl: blob.url };
+    } catch (e) {
+      throw new Error(
+        `Vercel Blob rejected the upload: ${(e as Error).message}. Check the Blob store is still connected to this project.`,
+        { cause: e },
+      );
+    }
+  }
+
+  // The disk fallback exists for local development. On a serverless host the
+  // filesystem is read-only, so attempting it produces an opaque EROFS/EACCES
+  // instead of naming the real problem — no Blob store is connected.
+  if (process.env.VERCEL) {
+    throw new Error(
+      "No Blob store is connected, so there is nowhere to put uploads. " +
+        "In Vercel: Storage → Create Database → Blob, connect it to this project, then redeploy. " +
+        "BLOB_READ_WRITE_TOKEN is injected automatically once connected.",
+    );
   }
 
   const dir = localUploadDir();

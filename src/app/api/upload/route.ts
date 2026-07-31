@@ -35,8 +35,11 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     console.error("[upload] could not store the file:", e);
+    // storeFile explains *why* (no Blob store connected, Blob rejected the write).
+    // That text is operator-facing and contains no secrets, so pass it through
+    // rather than replacing it with something vague.
     return Response.json(
-      { error: "Couldn't save the image. If this keeps happening, the storage backend needs attention." },
+      { error: (e as Error).message || "Couldn't save the image." },
       { status: 502 },
     );
   }
