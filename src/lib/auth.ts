@@ -3,7 +3,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "@/db";
 import * as schema from "@/db/schema";
-import { passwordResetEmail, sendMail, smtpConfigured } from "@/lib/mailer";
+import { passwordResetEmail, sendMail, smtpConfigured, verifyEmailEmail } from "@/lib/mailer";
 
 const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
@@ -58,6 +58,26 @@ export const auth = betterAuth({
       } catch (e) {
         console.error("[auth] failed to send password reset email:", e);
         throw e;
+      }
+    },
+  },
+  emailVerification: {
+    /** Sent on sign-up, so the first thing a new account does is confirm its address. */
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    expiresIn: 60 * 60 * 24, // 24 hours
+    sendVerificationEmail: async ({ user, url }) => {
+      const mail = verifyEmailEmail(url);
+      if (!smtpConfigured()) {
+        console.warn(`[auth] SMTP not configured — verification link for ${user.email}:\n${url}`);
+        return;
+      }
+      try {
+        await sendMail({ to: user.email, subject: mail.subject, text: mail.text, html: mail.html });
+      } catch (e) {
+        // Signing up must not fail because the mail server is down; the address
+        // simply stays unverified and can be confirmed later from Account.
+        console.error("[auth] failed to send verification email:", e);
       }
     },
   },

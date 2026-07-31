@@ -8,12 +8,14 @@ import { user } from "@/db/schema";
 import { cookNotifyChannelsAvailable } from "@/lib/cook-timer-notify";
 import { getOrCreateChannelForUser } from "@/lib/ensure-channel";
 import { PLAN_LIMITS, type Plan } from "@/lib/entitlements";
+import { verificationEnforced } from "@/lib/email-verification";
 import { getServerSession } from "@/lib/session";
 import { MyRecipesList } from "./my-recipes-list";
 import { ProfileAvatarForm } from "./profile-avatar-form";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import { NotificationSettingsForm } from "./notification-settings-form";
 import { RestoreIntroButton } from "./restore-intro-button";
+import { VerifyEmailPanel } from "./verify-email-panel";
 
 export const metadata = {
   title: "Account · Focolare",
@@ -121,6 +123,12 @@ export default async function AccountPage() {
         </div>
         <RestoreIntroButton hidden={profile?.hideHomeIntro ?? false} />
       </section>
+
+      <VerifyEmailPanel
+        email={session.user.email}
+        verified={Boolean(profile?.emailVerified)}
+        enforced={verificationEnforced()}
+      />
 
       <section className="space-y-3 rounded-2xl border border-sand bg-surface p-5">
         <div>

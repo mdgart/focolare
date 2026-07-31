@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { channel, mediaAsset, recipe, recipeStep, recipeTag, tag, taxonomyCategory, user } from "@/db/schema";
 import { isAdminSessionUser } from "@/lib/admin-auth";
+import { blockedFromPublishing } from "@/lib/email-verification";
 import { getOrCreateChannelForUser } from "@/lib/ensure-channel";
 import { normalizeLanguage } from "@/lib/languages";
 import { moderateContent, recipeToModerationText } from "@/lib/moderation";
@@ -268,6 +269,12 @@ export async function createRecipeAction(form: {
     return { error: "One or more images are invalid or not owned by your account" };
   }
 
+  // Drafts are always allowed; only making something visible needs a confirmed address.
+  if (form.publish !== false) {
+    const blocked = await blockedFromPublishing(session.user.id);
+    if (blocked) return { error: blocked };
+  }
+
   const moderation = await moderateSubmission({
     title: form.title,
     description: form.description,
@@ -379,6 +386,14 @@ export async function updateRecipeAction(
   const mediaToCheck = [form.coverMediaId, ...form.steps.map((s) => s.imageMediaId)];
   if (!(await verifyMediaOwnedByUser(session.user.id, mediaToCheck))) {
     return { error: "One or more images are invalid or not owned by your account" };
+  }
+
+  // Only guard the moment something becomes visible, so editing an already
+  // published recipe keeps working even if enforcement is turned on later.
+  const becomingPublished = form.publish === true && owned.recipeRow.publishedAt === null;
+  if (becomingPublished) {
+    const blocked = await blockedFromPublishing(session.user.id);
+    if (blocked) return { error: blocked };
   }
 
   const moderation = await moderateSubmission({
