@@ -468,13 +468,22 @@ export async function getRecipeBundle(recipeId: string) {
   if (!r) return null;
 
   let coverPublicUrl: string | null = null;
+  let coverAttribution: { text: string; url: string | null } | null = null;
   if (r.coverMediaId) {
     const [cover] = await db
-      .select({ publicUrl: mediaAsset.publicUrl })
+      .select({
+        publicUrl: mediaAsset.publicUrl,
+        attribution: mediaAsset.attribution,
+        attributionUrl: mediaAsset.attributionUrl,
+      })
       .from(mediaAsset)
       .where(eq(mediaAsset.id, r.coverMediaId))
       .limit(1);
     coverPublicUrl = cover?.publicUrl ?? null;
+    // Only stock imports carry credit; uploads and AI images have none.
+    coverAttribution = cover?.attribution
+      ? { text: cover.attribution, url: cover.attributionUrl }
+      : null;
   }
 
   const stepRows = await db
@@ -499,7 +508,7 @@ export async function getRecipeBundle(recipeId: string) {
     .where(eq(recipeTag.recipeId, recipeId))
     .orderBy(tag.label);
 
-  return { recipe: r, coverPublicUrl, steps, tags };
+  return { recipe: r, coverPublicUrl, coverAttribution, steps, tags };
 }
 
 /** Publish a draft, or return a published recipe to draft. Owner (or admin) only. */

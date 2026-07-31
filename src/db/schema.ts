@@ -181,6 +181,10 @@ export const mediaAsset = pgTable("media_asset", {
   kind: mediaKindEnum("kind").notNull().default("image"),
   width: integer("width"),
   height: integer("height"),
+  /** Photographer / source credit for imported stock photos. Null for uploads and AI images. */
+  attribution: text("attribution"),
+  /** Link back to the original, shown alongside the credit. */
+  attributionUrl: text("attribution_url"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
