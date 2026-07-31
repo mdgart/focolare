@@ -2,6 +2,7 @@ import Link from "next/link";
 import { listUsersForAdmin } from "@/actions/admin-users";
 import { getServerSession } from "@/lib/session";
 import { BlockControls } from "./block-controls";
+import { PlanControl } from "./plan-control";
 
 export const metadata = { title: "Users · Focolare admin" };
 
@@ -19,8 +20,11 @@ export default async function AdminUsersPage({
       <div>
         <h2 className="text-xl">People</h2>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-ink-soft">
-          Blocking signs the account out immediately, stops it signing back in, and hides its
-          channel and recipes from everyone else. Nothing is deleted, so it can be undone.
+          <strong className="text-ink">Grant Pro</strong> comps an account to the paid plan with no
+          payment — useful for testers, early users and your own accounts.{" "}
+          <strong className="text-ink">Blocking</strong> signs the account out immediately, stops it
+          signing back in, and hides its channel and recipes from everyone else. Nothing is deleted,
+          so both are reversible.
         </p>
       </div>
 
@@ -99,7 +103,8 @@ export default async function AdminUsersPage({
                 ) : null}
               </div>
 
-              <div className="shrink-0 sm:self-center">
+              <div className="flex shrink-0 items-center gap-2 sm:self-center">
+                <PlanControl userId={u.id} plan={u.plan} />
                 <BlockControls
                   userId={u.id}
                   blocked={Boolean(u.blockedAt)}

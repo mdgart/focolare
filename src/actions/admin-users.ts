@@ -95,6 +95,32 @@ export async function blockUserAction(
   return { ok: true };
 }
 
+/**
+ * Grant or revoke Pro without a payment.
+ *
+ * `user.plan` is the single field entitlements read, so a comped account is
+ * indistinguishable from a paying one at runtime. When billing is added later it
+ * writes this same column, and manual grants keep working alongside it.
+ */
+export async function setUserPlanAction(
+  targetUserId: string,
+  plan: "free" | "pro",
+): Promise<{ ok: true } | { error: string }> {
+  const guard = await requireAdmin();
+  if ("error" in guard) return guard;
+  if (plan !== "free" && plan !== "pro") return { error: "Unknown plan" };
+
+  const [target] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.id, targetUserId))
+    .limit(1);
+  if (!target) return { error: "User not found" };
+
+  await db.update(user).set({ plan, updatedAt: new Date() }).where(eq(user.id, targetUserId));
+  return { ok: true };
+}
+
 export async function unblockUserAction(
   targetUserId: string,
 ): Promise<{ ok: true } | { error: string }> {

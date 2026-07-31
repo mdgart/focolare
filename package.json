@@ -15,7 +15,8 @@
     "db:reset:recipes": "tsx src/db/reset-mock-recipes.ts",
     "db:backfill:tags": "tsx src/db/backfill-mock-tags.ts",
     "db:migrate": "tsx src/db/migrate.ts",
-    "db:remove:demo": "tsx src/db/remove-demo-data.ts"
+    "db:remove:demo": "tsx src/db/remove-demo-data.ts",
+    "db:set-plan": "tsx src/db/set-plan.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.3",
