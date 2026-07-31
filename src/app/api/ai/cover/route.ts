@@ -3,7 +3,12 @@ import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { mediaAsset } from "@/db/schema";
 import { getAiQuota, quotaExceededMessage, recordAiUsage } from "@/lib/entitlements";
-import { getOpenAI, isAiRecipeEnabled, RECIPE_IMAGE_MODEL } from "@/lib/openai";
+import {
+  getOpenAI,
+  isAiRecipeEnabled,
+  RECIPE_IMAGE_MODEL,
+  RECIPE_IMAGE_QUALITY,
+} from "@/lib/openai";
 import { storeFile } from "@/lib/storage";
 
 /** Generate a cover photo for a recipe with OpenAI and store it like a normal upload. */
@@ -45,6 +50,9 @@ export async function POST(req: Request) {
       model: RECIPE_IMAGE_MODEL,
       prompt,
       size: "1536x1024",
+      // Pinned: the API defaults to `auto`, whose tiers differ by more than 10x
+      // in price per image, which makes per-user cost impossible to budget.
+      quality: RECIPE_IMAGE_QUALITY,
       n: 1,
     });
 
