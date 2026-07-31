@@ -13,6 +13,13 @@ export type AiUsageKind = "recipe" | "image";
  * working timers is the moment that sells the product, so people must be able to
  * feel it before paying. Image generation is metered tighter because each call has
  * a real per-image cost, and SMS is paid-only because every message costs money to send.
+ *
+ * Cost of the image ceilings, at the pinned `medium` quality (see
+ * RECIPE_IMAGE_QUALITY) and roughly $0.06 per 1536x1024 image:
+ *   free  1 image  ≈ $0.06 per user per month
+ *   pro  30 images ≈ $1.90 per user per month, if fully consumed
+ * Check the current rate at platform.openai.com/usage before changing these —
+ * image generation is the only meaningfully priced call in the app.
  */
 export const PLAN_LIMITS: Record<
   Plan,
