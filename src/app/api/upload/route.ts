@@ -22,23 +22,42 @@ export async function POST(req: Request) {
     return Response.json({ error: "Max 5MB" }, { status: 400 });
   }
 
-  const stored = await storeFile({
-    data: Buffer.from(await file.arrayBuffer()),
-    filename: file.name,
-    contentType: file.type,
-    prefix: "uploads",
-  });
+  // Storing and recording are separate failure modes worth telling apart: object
+  // storage being misconfigured and the database being behind the code produce the
+  // same blank 500 otherwise, which is what made this hard to diagnose in production.
+  let stored;
+  try {
+    stored = await storeFile({
+      data: Buffer.from(await file.arrayBuffer()),
+      filename: file.name,
+      contentType: file.type,
+      prefix: "uploads",
+    });
+  } catch (e) {
+    console.error("[upload] could not store the file:", e);
+    return Response.json(
+      { error: "Couldn't save the image. If this keeps happening, the storage backend needs attention." },
+      { status: 502 },
+    );
+  }
 
-  const [row] = await db
-    .insert(mediaAsset)
-    .values({
-      ownerUserId: session.user.id,
-      storageKey: stored.storageKey,
-      publicUrl: stored.publicUrl,
-      mimeType: file.type,
-      kind: "image",
-    })
-    .returning();
-
-  return Response.json({ media: row });
+  try {
+    const [row] = await db
+      .insert(mediaAsset)
+      .values({
+        ownerUserId: session.user.id,
+        storageKey: stored.storageKey,
+        publicUrl: stored.publicUrl,
+        mimeType: file.type,
+        kind: "image",
+      })
+      .returning();
+    return Response.json({ media: row });
+  } catch (e) {
+    console.error("[upload] stored the file but could not record it:", e);
+    return Response.json(
+      { error: "The image uploaded but couldn't be recorded. This usually means the database is behind the deployed code." },
+      { status: 500 },
+    );
+  }
 }
