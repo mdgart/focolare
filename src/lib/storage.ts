@@ -61,8 +61,19 @@ export async function storeFile(opts: {
       });
       return { storageKey: blob.pathname, publicUrl: blob.url };
     } catch (e) {
+      const message = (e as Error).message ?? "";
+      // Recipe covers are loaded directly by browsers and fetched by the moderation
+      // API, so they have to be publicly readable. A private store cannot serve them.
+      if (/private access|private store/i.test(message)) {
+        throw new Error(
+          "The connected Blob store is private, but recipe photos need public URLs. " +
+            "Create a Blob store with public access in Vercel (Storage → Create Database → Blob) " +
+            "and connect it to this project.",
+          { cause: e },
+        );
+      }
       throw new Error(
-        `Vercel Blob rejected the upload: ${(e as Error).message}. Check the Blob store is still connected to this project.`,
+        `Vercel Blob rejected the upload: ${message}. Check the Blob store is still connected to this project.`,
         { cause: e },
       );
     }
