@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { dismissHomeIntroAction } from "@/actions/account";
+import { setLocalStorageValue, useLocalStorageValue } from "@/lib/use-local-storage-value";
 
 const GUEST_STORAGE_KEY = "focolare.dismissHomeIntro";
 
@@ -16,32 +17,23 @@ export function HomeHero({
   initialHidden: boolean;
   isLoggedIn: boolean;
 }) {
-  const [visible, setVisible] = useState(() => (isLoggedIn ? !initialHidden : true));
+  /** Optimistic hide for the signed-in path, rolled back if the action fails. */
+  const [dismissedNow, setDismissedNow] = useState(false);
+  const guestDismissed = useLocalStorageValue(GUEST_STORAGE_KEY);
 
-  useEffect(() => {
-    if (isLoggedIn) return;
-    try {
-      setVisible(localStorage.getItem(GUEST_STORAGE_KEY) !== "1");
-    } catch {
-      setVisible(true);
-    }
-  }, [isLoggedIn]);
+  const hidden = dismissedNow || (isLoggedIn ? initialHidden : guestDismissed === "1");
 
   async function dismiss() {
-    setVisible(false);
-    if (isLoggedIn) {
-      const res = await dismissHomeIntroAction();
-      if ("error" in res) setVisible(true);
+    if (!isLoggedIn) {
+      setLocalStorageValue(GUEST_STORAGE_KEY, "1");
       return;
     }
-    try {
-      localStorage.setItem(GUEST_STORAGE_KEY, "1");
-    } catch {
-      /* ignore */
-    }
+    setDismissedNow(true);
+    const res = await dismissHomeIntroAction();
+    if ("error" in res) setDismissedNow(false);
   }
 
-  if (!visible) return null;
+  if (hidden) return null;
 
   return (
     <section className="relative">

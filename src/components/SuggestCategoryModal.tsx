@@ -5,18 +5,15 @@ import { useEffect, useRef, useState } from "react";
 import { suggestCategoryWithPlaceholderAction } from "@/actions/taxonomy";
 import { formField } from "@/lib/form-styles";
 
-export function SuggestCategoryModal(props: {
+type ModalProps = {
   open: boolean;
   onClose: () => void;
   parentCategoryOptions: { id: string; label: string }[];
   onCreated: (row: { id: string; label: string }) => void;
-}) {
+};
+
+export function SuggestCategoryModal(props: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [label, setLabel] = useState("");
-  const [parentId, setParentId] = useState("");
-  const [synonyms, setSynonyms] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState(false);
 
   useEffect(() => {
     const el = dialogRef.current;
@@ -28,14 +25,27 @@ export function SuggestCategoryModal(props: {
     }
   }, [props.open]);
 
-  useEffect(() => {
-    if (props.open) {
-      setLabel("");
-      setParentId("");
-      setSynonyms("");
-      setError(null);
-    }
-  }, [props.open]);
+  return (
+    <dialog
+      ref={dialogRef}
+      className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-0 text-neutral-900 shadow-2xl backdrop:bg-black/40"
+      onCancel={(ev) => {
+        ev.preventDefault();
+        props.onClose();
+      }}
+    >
+      {/* Mounted only while open, so the fields reset on each open without an effect. */}
+      {props.open ? <SuggestCategoryForm {...props} /> : null}
+    </dialog>
+  );
+}
+
+function SuggestCategoryForm(props: ModalProps) {
+  const [label, setLabel] = useState("");
+  const [parentId, setParentId] = useState("");
+  const [synonyms, setSynonyms] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -56,15 +66,7 @@ export function SuggestCategoryModal(props: {
   }
 
   return (
-    <dialog
-      ref={dialogRef}
-      className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-0 text-neutral-900 shadow-2xl backdrop:bg-black/40"
-      onCancel={(ev) => {
-        ev.preventDefault();
-        props.onClose();
-      }}
-    >
-      <form onSubmit={onSubmit} className="space-y-4 p-6 sm:p-8">
+    <form onSubmit={onSubmit} className="space-y-4 p-6 sm:p-8">
         <div className="flex items-start justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-neutral-900">Suggest a category</h2>
@@ -138,7 +140,6 @@ export function SuggestCategoryModal(props: {
             {pending ? "Saving…" : "Save and use category"}
           </button>
         </div>
-      </form>
-    </dialog>
+    </form>
   );
 }
