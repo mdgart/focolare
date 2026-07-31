@@ -33,6 +33,37 @@ export async function sendMail(opts: {
   return true;
 }
 
+export function verifyEmailEmail(url: string): { subject: string; text: string; html: string } {
+  const subject = "Confirm your email for Focolare";
+  const text = [
+    "Welcome to Focolare.",
+    "",
+    "Confirm this address so you can publish recipes and recover your account if you forget your password:",
+    url,
+    "",
+    "If you didn't sign up, you can ignore this email.",
+  ].join("\n");
+
+  const html = `
+  <div style="font-family:system-ui,-apple-system,sans-serif;background:#faf5ec;padding:32px">
+    <div style="max-width:520px;margin:0 auto;background:#fffdf8;border:1px solid #e9dfce;border-radius:20px;padding:32px">
+      <p style="margin:0 0 4px;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#9a3412;font-weight:600">Focolare</p>
+      <h1 style="margin:0 0 16px;font-size:24px;color:#262019">Confirm your email</h1>
+      <p style="margin:0 0 20px;line-height:1.6;color:#5d5347">
+        Welcome. Confirm this address so you can publish recipes, and so we can help you back in if you ever forget your password.
+      </p>
+      <p style="margin:0 0 24px">
+        <a href="${url}" style="display:inline-block;background:#9a3412;color:#fff8f0;text-decoration:none;padding:12px 26px;border-radius:999px;font-weight:600">Confirm my email</a>
+      </p>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:#7a6e5f">
+        If you didn't sign up for Focolare, you can ignore this email.
+      </p>
+    </div>
+  </div>`;
+
+  return { subject, text, html };
+}
+
 export function passwordResetEmail(url: string): { subject: string; text: string; html: string } {
   const subject = "Reset your Focolare password";
   const text = [
