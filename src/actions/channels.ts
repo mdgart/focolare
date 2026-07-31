@@ -3,7 +3,7 @@
 import { and, count, desc, eq, getTableColumns, isNotNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/db";
-import { channel, follow, mediaAsset, recipe } from "@/db/schema";
+import { channel, follow, mediaAsset, recipe, user } from "@/db/schema";
 import { getOrCreateChannelForUser } from "@/lib/ensure-channel";
 import { getServerSession } from "@/lib/session";
 
@@ -128,6 +128,17 @@ export async function getChannelBySlug(slug: string, opts?: { viewerUserId: stri
   if (!ch) return null;
   const viewer = opts?.viewerUserId ?? null;
   const isOwner = viewer !== null && viewer === ch.ownerUserId;
+
+  // A blocked creator's channel reads as missing to everyone but themselves,
+  // so a block hides the profile as well as the recipes.
+  if (!isOwner) {
+    const [owner] = await db
+      .select({ blockedAt: user.blockedAt })
+      .from(user)
+      .where(eq(user.id, ch.ownerUserId))
+      .limit(1);
+    if (owner?.blockedAt) return null;
+  }
   // Visitors see only finished, public, cleared recipes. The owner sees everything they own,
   // including drafts and anything held for review.
   const recipeWhere = isOwner
