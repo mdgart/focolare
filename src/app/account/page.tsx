@@ -11,6 +11,7 @@ import { PLAN_LIMITS, type Plan } from "@/lib/entitlements";
 import { getServerSession } from "@/lib/session";
 import { MyRecipesList } from "./my-recipes-list";
 import { ProfileAvatarForm } from "./profile-avatar-form";
+import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import { NotificationSettingsForm } from "./notification-settings-form";
 import { RestoreIntroButton } from "./restore-intro-button";
 
@@ -119,6 +120,17 @@ export default async function AccountPage() {
           </p>
         </div>
         <RestoreIntroButton hidden={profile?.hideHomeIntro ?? false} />
+      </section>
+
+      <section className="space-y-3 rounded-2xl border border-sand bg-surface p-5">
+        <div>
+          <h2 className="text-lg">On this device</h2>
+          <p className="mt-1 text-sm text-ink-soft">
+            Push has to be enabled per device and per browser, because the subscription belongs to
+            the browser rather than to your account.
+          </p>
+        </div>
+        <PushNotificationToggle vapidPublicKey={process.env.VAPID_PUBLIC_KEY?.trim() || null} />
       </section>
 
       <NotificationSettingsForm
