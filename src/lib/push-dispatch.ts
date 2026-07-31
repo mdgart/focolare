@@ -1,7 +1,9 @@
 import webpush from "web-push";
 import { and, eq, lte } from "drizzle-orm";
 import { db } from "@/db";
-import { cookSession, pushSubscription, scheduledStepEvent } from "@/db/schema";
+import { cookSession, pushSubscription, scheduledStepEvent, user } from "@/db/schema";
+import { cookNotifyChannelsAvailable, sendCookTimerEmail, sendCookTimerSms } from "@/lib/cook-timer-notify";
+import { PLAN_LIMITS, type Plan } from "@/lib/entitlements";
 import type { PushPayloadV1 } from "@/lib/notifications-types";
 
 function configureWebPush() {
@@ -18,10 +20,7 @@ export async function dispatchDuePushEvents(): Promise<{
   sent: number;
   skippedNoVapid: boolean;
 }> {
-  if (!configureWebPush()) {
-    return { attempted: 0, sent: 0, skippedNoVapid: true };
-  }
-
+  const vapidOk = configureWebPush();
   const now = new Date();
   const due = await db
     .select()
@@ -50,12 +49,67 @@ export async function dispatchDuePushEvents(): Promise<{
       continue;
     }
 
+    const [u] = await db
+      .select({
+        email: user.email,
+        phoneE164: user.phoneE164,
+        notifyCookTimerEmail: user.notifyCookTimerEmail,
+        notifyCookTimerSms: user.notifyCookTimerSms,
+        plan: user.plan,
+      })
+      .from(user)
+      .where(eq(user.id, session.userId))
+      .limit(1);
+
     const subs = await db
       .select()
       .from(pushSubscription)
       .where(eq(pushSubscription.userId, session.userId));
 
-    if (subs.length === 0) {
+    const channels = cookNotifyChannelsAvailable();
+    let delivered = false;
+    let anyChannelAttempted = false;
+
+    if (subs.length > 0 && vapidOk) {
+      anyChannelAttempted = true;
+      const body = JSON.stringify(payload);
+      try {
+        await Promise.all(
+          subs.map((s) =>
+            webpush.sendNotification(
+              { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+              body,
+              { TTL: 60 },
+            ),
+          ),
+        );
+        delivered = true;
+      } catch {
+        /* push failed; may still deliver email/SMS */
+      }
+    }
+
+    if (u?.notifyCookTimerEmail && u.email && channels.smtp) {
+      anyChannelAttempted = true;
+      try {
+        if (await sendCookTimerEmail(u.email, payload)) delivered = true;
+      } catch {
+        /* SMTP send failed */
+      }
+    }
+
+    // SMS costs real money per message, so it is a paid-plan channel.
+    const smsEntitled = PLAN_LIMITS[(u?.plan as Plan) ?? "free"].smsNotifications;
+    if (smsEntitled && u?.notifyCookTimerSms && u.phoneE164?.trim() && channels.twilio) {
+      anyChannelAttempted = true;
+      try {
+        if (await sendCookTimerSms(u.phoneE164.trim(), payload)) delivered = true;
+      } catch {
+        /* Twilio error */
+      }
+    }
+
+    if (!anyChannelAttempted) {
       await db
         .update(scheduledStepEvent)
         .set({ status: "skipped", processedAt: new Date() })
@@ -63,23 +117,13 @@ export async function dispatchDuePushEvents(): Promise<{
       continue;
     }
 
-    const body = JSON.stringify(payload);
-    try {
-      await Promise.all(
-        subs.map((s) =>
-          webpush.sendNotification(
-            { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-            body,
-            { TTL: 60 },
-          ),
-        ),
-      );
+    if (delivered) {
       await db
         .update(scheduledStepEvent)
         .set({ status: "sent", processedAt: new Date() })
         .where(eq(scheduledStepEvent.id, ev.id));
       sent += 1;
-    } catch {
+    } else {
       await db
         .update(scheduledStepEvent)
         .set({ status: "failed", processedAt: new Date() })
@@ -87,5 +131,5 @@ export async function dispatchDuePushEvents(): Promise<{
     }
   }
 
-  return { attempted: due.length, sent, skippedNoVapid: false };
+  return { attempted: due.length, sent, skippedNoVapid: !vapidOk && due.length > 0 };
 }

@@ -1,123 +1,227 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------------------
+   Focolare design tokens — "warm editorial"
+   Cream paper, terracotta accents, deep warm ink. Serif display (Fraunces)
+   for headlines, Geist for UI/body.
+--------------------------------------------------------------------------- */
+
 :root {
-  /* Light mode colors - fresh, inviting palette */
-  --background: #faf8f4;
-  --foreground: #2d2520;
+  /* Paper + surfaces */
+  --background: #faf5ec;
+  --surface: #fffdf8;
+  --surface-sunken: #f3ecdf;
 
-  /* Light backgrounds */
-  --bg-primary: #faf8f4;
-  --bg-secondary: #f5f1e8;
-  --bg-tertiary: #ede7de;
-  --text-primary: #2d2520;
-  --text-secondary: #5a5550;
-  --text-muted: #9a9590;
+  /* Ink */
+  --foreground: #262019;
+  --ink: #262019;
+  --ink-soft: #5d5347;
+  --ink-muted: #7a6e5f;
 
-  /* Warm, natural accent colors */
-  --accent-primary: #a0826d;
-  --accent-primary-light: #b39885;
-  --accent-green: #6b8f7a;
-  --accent-green-light: #88a99a;
-  --accent-cream: #f0e6d2;
-  --accent-gold: #d4a574;
+  /* Accents */
+  --terracotta: #9a3412;
+  --terracotta-strong: #7c2d12;
+  --terracotta-tint: #f6e3d3;
+  --sage: #58705a;
+  --gold: #c98f2c;
 
-  /* Border and divider */
-  --border-color: #e0d5c8;
-  --border-subtle: #e8dcc8;
+  /* Lines */
+  --border-color: #e9dfce;
+  --border-strong: #d9cbb4;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-sunken: var(--surface-sunken);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-terracotta: var(--terracotta);
+  --color-terracotta-strong: var(--terracotta-strong);
+  --color-terracotta-tint: var(--terracotta-tint);
+  --color-sage: var(--sage);
+  --color-gold: var(--gold);
+  --color-sand: var(--border-color);
+  --color-sand-strong: var(--border-strong);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: var(--bg-primary);
-    --foreground: var(--text-primary);
+@layer base {
+  body {
+    background: var(--background);
+    color: var(--ink);
+    font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  }
+
+  ::selection {
+    background: var(--terracotta-tint);
+    color: var(--terracotta-strong);
+  }
+
+  /* Typography — serif display voice for headings */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display), Georgia, "Times New Roman", serif;
+    color: var(--ink);
+  }
+
+  h1 {
+    font-size: 2.25rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.12;
+  }
+
+  h2 {
+    font-size: 1.625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
+  /* Focus visibility (keyboard) */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--terracotta);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
   }
 }
 
-body {
-  background: linear-gradient(135deg, #faf8f4 0%, #f9f6f1 25%, #f5f1e8 50%, #f9f6f1 75%, #faf8f4 100%);
-  background-attachment: fixed;
-  color: var(--foreground);
-  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
-}
-
-/* Typography improvements */
-h1 {
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-h2 {
-  font-size: 1.5rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.3;
-}
-
-h3 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  line-height: 1.4;
-}
-
-/* Card and container styles */
+/* Cards */
+@layer components {
 .card {
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--border-color);
-  border-radius: 0.75rem;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border-radius: 1.25rem;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  box-shadow: 0 1px 2px rgba(64, 46, 26, 0.04);
 }
 
 .card:hover {
-  border-color: var(--accent-primary);
-  background: var(--bg-secondary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: var(--border-strong);
+  box-shadow: 0 10px 30px -12px rgba(64, 46, 26, 0.18);
 }
 
-/* Button base styles */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.5rem;
+  gap: 0.5rem;
+  border-radius: 9999px;
   font-weight: 600;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  padding: 0.875rem 1.75rem;
-  border: none;
   font-size: 0.95rem;
+  letter-spacing: 0.01em;
+  padding: 0.625rem 1.375rem;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.15s ease;
+}
+
+@media (min-width: 640px) {
+  .btn {
+    padding: 0.75rem 1.625rem;
+  }
+}
+
+.btn:active {
+  transform: scale(0.98);
 }
 
 .btn-primary {
-  background: var(--accent-primary);
-  color: white;
-  box-shadow: 0 2px 8px rgba(160, 130, 109, 0.15);
+  background: var(--terracotta);
+  color: #fff8f0;
+  box-shadow: 0 6px 16px -6px rgba(154, 52, 18, 0.45);
 }
 
 .btn-primary:hover {
-  background: var(--accent-primary-light);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(160, 130, 109, 0.25);
+  background: var(--terracotta-strong);
+  box-shadow: 0 10px 22px -8px rgba(124, 45, 18, 0.5);
 }
 
 .btn-secondary {
-  background: white;
-  color: var(--text-primary);
-  border: 1.5px solid var(--border-color);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--border-strong);
 }
 
 .btn-secondary:hover {
-  background: var(--bg-secondary);
-  border-color: var(--accent-primary);
-  color: var(--accent-primary);
+  border-color: var(--terracotta);
+  color: var(--terracotta-strong);
+  background: #fffcf5;
+}
+
+.btn:focus-visible {
+  border-radius: 9999px;
+}
+}
+
+/* Motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ----- Print (recipe checklist view) ----- */
+@media print {
+  body {
+    background: #fff !important;
+    background-image: none !important;
+    color: #111 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .recipe-print-root {
+    max-width: 100% !important;
+  }
+
+  .recipe-print-root .card,
+  .recipe-print-root .recipe-block {
+    box-shadow: none !important;
+    border-color: #ccc !important;
+    break-inside: avoid;
+  }
+
+  .recipe-print-root input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #111;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .recipe-print-root a[href] {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
 }

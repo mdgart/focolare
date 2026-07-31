@@ -9,8 +9,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Recipe network with guided cook mode",
     start_url: "/",
     display: "standalone",
-    background_color: "#0a0a0a",
-    theme_color: "#1a0a06",
+    background_color: "#faf5ec",
+    theme_color: "#faf5ec",
     icons: [
       {
         src: logo,

@@ -1,10 +1,8 @@
-import { mkdir, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { db } from "@/db";
 import { mediaAsset } from "@/db/schema";
-import { nanoid } from "nanoid";
+import { storeFile } from "@/lib/storage";
 
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
@@ -24,23 +22,19 @@ export async function POST(req: Request) {
     return Response.json({ error: "Max 5MB" }, { status: 400 });
   }
 
-  const rel = process.env.UPLOAD_DIR ?? ".data/uploads";
-  const uploadDir = path.isAbsolute(rel) ? rel : path.join(process.cwd(), rel);
-  await mkdir(uploadDir, { recursive: true });
-  const ext = path.extname(file.name || "") || ".bin";
-  const storageKey = `${nanoid(12)}${ext}`;
-  const buf = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(uploadDir, storageKey), buf);
-
-  const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-  const publicUrl = `${base}/api/files/${encodeURIComponent(storageKey)}`;
+  const stored = await storeFile({
+    data: Buffer.from(await file.arrayBuffer()),
+    filename: file.name,
+    contentType: file.type,
+    prefix: "uploads",
+  });
 
   const [row] = await db
     .insert(mediaAsset)
     .values({
       ownerUserId: session.user.id,
-      storageKey,
-      publicUrl,
+      storageKey: stored.storageKey,
+      publicUrl: stored.publicUrl,
       mimeType: file.type,
       kind: "image",
     })

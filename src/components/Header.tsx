@@ -1,20 +1,28 @@
 import Image from "next/image";
 import Link from "next/link";
-import { getPublicLogoUrl } from "@/lib/public-logo-url";
+import { getChannelProfileForUser } from "@/actions/channels";
+import { countOngoingPreparationsForUser } from "@/actions/preparations";
+import { isAdminSessionUser } from "@/lib/admin-auth";
+import { getPublicLogoMarkUrl } from "@/lib/public-logo-url";
 import { getServerSession } from "@/lib/session";
+import { UserAccountMenu } from "@/components/UserAccountMenu";
 
 export async function Header() {
   const session = await getServerSession();
-  const logoSrc = getPublicLogoUrl();
+  const logoSrc = getPublicLogoMarkUrl();
+  const showAdmin = session?.user ? await isAdminSessionUser(session.user) : false;
+  const [myChannel, inProgressCount] = session?.user
+    ? await Promise.all([
+        getChannelProfileForUser(session.user.id),
+        countOngoingPreparationsForUser(),
+      ])
+    : [null, 0];
+
   return (
-    <header className="sticky top-0 z-50 border-b border-neutral-300 bg-white/95 backdrop-blur-sm shadow-sm">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-6 px-4 py-4">
-        <Link
-          href="/"
-          aria-label="Focolare home"
-          className="flex items-center gap-3 shrink-0"
-        >
-          <div className="relative">
+    <header className="sticky top-0 z-50 border-b border-sand bg-[#faf5ecdd] backdrop-blur-md print:hidden">
+      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between gap-3 py-3 sm:gap-6">
+          <Link href="/" aria-label="Focolare home" className="flex shrink-0 items-center gap-2.5">
             <Image
               src={logoSrc}
               alt=""
@@ -22,61 +30,78 @@ export async function Header() {
               height={56}
               priority
               unoptimized
-              className="h-14 w-14 shrink-0 object-contain drop-shadow-[0_0_8px_rgba(139,115,85,0.2)]"
+              className="h-11 w-11 shrink-0 object-contain sm:h-14 sm:w-14"
             />
-          </div>
-          <div className="hidden flex-col sm:flex">
-            <span className="text-2xl font-bold tracking-tight text-amber-900">Focolare</span>
-          </div>
-        </Link>
+            <span className="font-display text-2xl font-semibold tracking-tight text-ink sm:text-[1.75rem]">
+              Focolare
+            </span>
+          </Link>
 
-        <nav className="flex flex-1 items-center justify-center gap-8 text-sm">
-          <Link
-            href="/discover"
-            className="text-neutral-600 transition hover:text-amber-900 font-medium"
-          >
-            Discover
-          </Link>
-          <Link
-            href="/create/recipe"
-            className="text-neutral-600 transition hover:text-amber-900 font-medium"
-          >
-            Create
-          </Link>
-          <Link
-            href="/taxonomy/suggest"
-            className="text-neutral-600 transition hover:text-amber-900 font-medium"
-          >
-            Suggest
-          </Link>
-        </nav>
+          <nav className="hidden flex-1 items-center justify-center gap-7 text-[0.95rem] lg:flex">
+            <Link href="/discover" className="font-medium text-ink-soft transition hover:text-terracotta-strong">
+              Discover
+            </Link>
+            <Link
+              href="/create/recipe"
+              className="font-medium text-ink-soft transition hover:text-terracotta-strong"
+            >
+              Create
+            </Link>
+            {showAdmin ? (
+              <Link
+                href="/admin/taxonomy"
+                className="font-medium text-terracotta transition hover:text-terracotta-strong"
+              >
+                Admin
+              </Link>
+            ) : null}
+          </nav>
 
-        <div className="flex items-center gap-3">
-          {session?.user ? (
-            <div className="flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-amber-700 to-amber-800 flex items-center justify-center text-xs font-bold text-white">
-                {session.user.email?.[0].toUpperCase()}
-              </div>
-              <span className="hidden text-sm text-neutral-600 sm:block truncate max-w-[150px]">{session.user.email}</span>
-            </div>
-          ) : (
-            <>
-              <Link
-                href="/sign-in"
-                className="hidden text-neutral-600 transition hover:text-amber-900 font-medium sm:block"
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/sign-up"
-                className="btn btn-primary text-sm"
-              >
-                Sign up
-              </Link>
-            </>
-          )}
+          <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+            {session?.user?.email ? (
+              <UserAccountMenu
+                email={session.user.email}
+                name={session.user.name}
+                profileHref={myChannel ? `/c/${myChannel.slug}` : undefined}
+                avatarUrl={myChannel?.avatarPublicUrl ?? null}
+                inProgressCount={inProgressCount}
+              />
+            ) : (
+              <>
+                <Link
+                  href="/sign-in"
+                  className="hidden font-medium text-ink-soft transition hover:text-terracotta-strong sm:block"
+                >
+                  Sign in
+                </Link>
+                <Link href="/sign-up" className="btn btn-primary px-4 py-2 text-sm sm:px-5 sm:py-2.5">
+                  Sign up
+                </Link>
+              </>
+            )}
+          </div>
         </div>
+
+        <nav
+          className="flex gap-2 overflow-x-auto border-t border-sand/70 py-2 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          aria-label="Main"
+        >
+          <HeaderChip href="/discover">Discover</HeaderChip>
+          <HeaderChip href="/create/recipe">Create</HeaderChip>
+          {showAdmin ? <HeaderChip href="/admin/taxonomy">Admin</HeaderChip> : null}
+        </nav>
       </div>
     </header>
+  );
+}
+
+function HeaderChip({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="shrink-0 whitespace-nowrap rounded-full border border-sand-strong bg-surface px-3.5 py-1.5 text-sm font-medium text-ink-soft transition hover:border-terracotta hover:text-terracotta-strong"
+    >
+      {children}
+    </Link>
   );
 }

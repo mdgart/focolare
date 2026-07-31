@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { formField } from "@/lib/form-styles";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -38,7 +39,7 @@ export default function SignUpPage() {
           placeholder="Display name (optional)"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-500"
+          className={formField}
         />
         <input
           type="email"
@@ -47,7 +48,7 @@ export default function SignUpPage() {
           placeholder="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-500"
+          className={formField}
         />
         <input
           type="password"
@@ -56,7 +57,7 @@ export default function SignUpPage() {
           placeholder="Password (min 8 chars)"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-500"
+          className={formField}
         />
         <button
           type="submit"
@@ -68,7 +69,7 @@ export default function SignUpPage() {
       </form>
       <p className="text-sm text-neutral-500">
         Already have an account?{" "}
-        <Link href="/sign-in" className="text-amber-300 underline">
+        <Link href="/sign-in" className="font-medium text-amber-900 underline hover:text-amber-950">
           Sign in
         </Link>
       </p>
