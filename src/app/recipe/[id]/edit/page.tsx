@@ -13,6 +13,7 @@ import { secondsToDurationParts } from "@/lib/format-duration";
 import { formatIngredientLine } from "@/lib/ingredient-measure";
 import { isAdminSessionUser } from "@/lib/admin-auth";
 import { isAiRecipeEnabled } from "@/lib/openai";
+import { stockPhotosEnabled } from "@/lib/stock-photos";
 import { getServerSession } from "@/lib/session";
 
 export default async function EditRecipePage({ params }: { params: Promise<{ id: string }> }) {
@@ -112,6 +113,7 @@ export default async function EditRecipePage({ params }: { params: Promise<{ id:
         parentCategoryOptions={parentCategoryOptions}
         initial={initial}
         aiEnabled={isAiRecipeEnabled()}
+        stockPhotosEnabled={stockPhotosEnabled()}
       />
     </div>
   );

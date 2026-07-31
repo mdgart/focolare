@@ -11,6 +11,7 @@ import {
 } from "@/actions/ai";
 import { createRecipeAction, updateRecipeAction } from "@/actions/recipes";
 import { ImageUploadField, type UploadedImage } from "@/components/ImageUploadField";
+import { StockPhotoPicker } from "@/components/StockPhotoPicker";
 import { SuggestCategoryModal } from "@/components/SuggestCategoryModal";
 import {
   durationPartsToSeconds,
@@ -71,6 +72,7 @@ export function CreateRecipeForm(props: {
   parentCategoryOptions: { id: string; label: string }[];
   initial?: RecipeFormInitial;
   aiEnabled?: boolean;
+  stockPhotosEnabled?: boolean;
 }) {
   const isEdit = Boolean(props.initial?.recipeId);
   const router = useRouter();
@@ -486,6 +488,12 @@ export function CreateRecipeForm(props: {
           </div>
           <div className="space-y-2">
             <ImageUploadField label="Cover photo (optional)" value={coverImage} onChange={setCoverImage} optional />
+            {props.stockPhotosEnabled && !coverImage ? (
+              <StockPhotoPicker
+                defaultQuery={title.trim() || description.trim().slice(0, 60)}
+                onPicked={setCoverImage}
+              />
+            ) : null}
             {showGenerateCover ? (
               <div className="flex flex-wrap items-center gap-3">
                 <button

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { listActiveCategories, listCategoriesForRecipeEditor } from "@/actions/taxonomy";
 import { isAiRecipeEnabled } from "@/lib/openai";
+import { stockPhotosEnabled } from "@/lib/stock-photos";
 import { getServerSession } from "@/lib/session";
 import { CreateRecipeForm } from "./create-recipe-form";
 
@@ -46,6 +47,7 @@ export default async function CreateRecipePage({
         categories={editorCategories}
         parentCategoryOptions={parentCategoryOptions}
         aiEnabled={isAiRecipeEnabled()}
+        stockPhotosEnabled={stockPhotosEnabled()}
       />
     </div>
   );

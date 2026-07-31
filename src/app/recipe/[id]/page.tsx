@@ -29,7 +29,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const access = await canViewRecipe({ userId: session?.user?.id ?? null, recipeId: id });
   const bundle = await getRecipeBundle(id);
   if (!bundle) notFound();
-  const { recipe: r, steps, coverPublicUrl, tags } = bundle;
+  const { recipe: r, steps, coverPublicUrl, coverAttribution, tags } = bundle;
 
   const [ch] = await db.select().from(channel).where(eq(channel.id, r.channelId)).limit(1);
   if (!ch) notFound();
@@ -209,9 +209,27 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
             ) : null}
 
             {coverPublicUrl ? (
-              <div className="relative mt-7 aspect-[16/10] max-h-[26rem] w-full overflow-hidden rounded-[1.5rem] ring-1 ring-black/5 print:hidden">
-                <Image src={coverPublicUrl} alt="" fill className="object-cover" priority unoptimized />
-              </div>
+              <figure className="mt-7 print:hidden">
+                <div className="relative aspect-[16/10] max-h-[26rem] w-full overflow-hidden rounded-[1.5rem] ring-1 ring-black/5">
+                  <Image src={coverPublicUrl} alt="" fill className="object-cover" priority unoptimized />
+                </div>
+                {coverAttribution ? (
+                  <figcaption className="mt-2 text-xs text-ink-muted">
+                    {coverAttribution.url ? (
+                      <a
+                        href={coverAttribution.url}
+                        target="_blank"
+                        rel="noopener noreferrer nofollow"
+                        className="hover:text-terracotta-strong"
+                      >
+                        {coverAttribution.text}
+                      </a>
+                    ) : (
+                      coverAttribution.text
+                    )}
+                  </figcaption>
+                ) : null}
+              </figure>
             ) : null}
           </header>
 
