@@ -82,26 +82,32 @@ use preview deploys). See `.env.example` for the full annotated list.
 | `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web push off (`npx web-push generate-vapid-keys`) |
 | `TWILIO_*` | SMS alerts off (they're paid-plan-only anyway) |
 
-## 5. Deploy, then migrate
+## 5. Deploy, then seed
 
 1. Deploy from the Vercel dashboard.
-2. Apply the schema to the production database. From your machine, pointed at the
-   production URL:
+
+   **Migrations run automatically.** Vercel uses the `vercel-build` script, which
+   applies every file in `drizzle/` before building. Shipping code whose schema
+   is missing was the single most common failure while building this app — the
+   symptom is a 500 with `column "x" does not exist` — so it is no longer a
+   step anyone has to remember.
+
+   A failed migration fails the build, deliberately: better a deploy that does
+   not land than one serving errors. You can still run it by hand against any
+   database:
 
    ```bash
    DATABASE_URL="<your production pooled url>" npm run db:migrate
    ```
 
-   This replays every file in `drizzle/` and is safe to re-run — already-applied
-   objects are detected and skipped.
-
-3. Seed the taxonomy (categories are required to publish a recipe):
+2. Seed the taxonomy (categories are required to publish a recipe):
 
    ```bash
    DATABASE_URL="<your production pooled url>" npm run db:seed
    ```
 
-   Skip `db:seed:recipes` in production unless you want the demo recipes.
+   `db:seed` creates categories only. Demo recipes live behind
+   `db:seed:recipes` and should not be run against production.
 
 ## 6. Verify
 
