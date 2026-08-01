@@ -278,7 +278,7 @@ export function CookSessionClient(props: {
         <h1 className="mt-3 text-2xl font-semibold leading-tight text-stone-900">{step.title}</h1>
         <p className="mt-2 text-sm text-stone-600">{props.recipeTitle}</p>
       </div>
-      <div className="my-6 text-center sm:my-8">
+      <div className={step.durationSeconds > 0 ? "my-6 text-center sm:my-8" : ""}>
         {step.durationSeconds > 0 ? (
           <>
             <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-b from-amber-50 to-orange-50/80 px-4 py-6">
@@ -300,9 +300,7 @@ export function CookSessionClient(props: {
               </button>
             ) : null}
           </>
-        ) : (
-          <p className="text-stone-600">No timer for this step.</p>
-        )}
+        ) : null}
       </div>
 
       {showVoiceUi ? (
