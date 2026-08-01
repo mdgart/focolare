@@ -17,7 +17,12 @@ function formatLocalDateTime(ms: number): string {
   }).format(new Date(ms));
 }
 
-export function StartCookForm(props: { recipeId: string; stepInputs: StepInput[] }) {
+export function StartCookForm(props: {
+  recipeId: string;
+  stepInputs: StepInput[];
+  /** True when some durations were read out of the step wording rather than stated. */
+  timingEstimated?: boolean;
+}) {
   const router = useRouter();
   const [readyBy, setReadyBy] = useState("");
   const [pending, setPending] = useState(false);
@@ -33,9 +38,13 @@ export function StartCookForm(props: { recipeId: string; stepInputs: StepInput[]
     readyBy.trim() && props.stepInputs.length > 0 && Number.isNaN(new Date(readyBy).getTime()),
   );
 
+  /** With no usable durations anywhere, a "schedule" would just repeat the same time back. */
+  const hasAnyTiming = props.stepInputs.some((s) => (s.durationSeconds ?? 0) > 0);
+
   const preview = useMemo(() => {
     if (!mounted) return null;
     if (props.stepInputs.length === 0) return null;
+    if (!props.stepInputs.some((s) => (s.durationSeconds ?? 0) > 0)) return null;
     if (readyBy.trim() && Number.isNaN(new Date(readyBy).getTime())) return null;
     return previewCookSchedule(props.stepInputs, {
       nowMs,
@@ -104,12 +113,24 @@ export function StartCookForm(props: { recipeId: string; stepInputs: StepInput[]
         </p>
       ) : props.stepInputs.length === 0 ? (
         <p className="text-sm text-ink-muted">Add steps with durations to see a ready-time estimate.</p>
+      ) : !hasAnyTiming ? (
+        <p className="rounded-xl border border-sand-strong bg-sunken px-4 py-3 text-sm leading-relaxed text-ink-soft">
+          None of these steps say how long they take, and nothing in the wording implies a time — so
+          there is no schedule to work backwards from. You can still cook along step by step, and
+          adding durations when you edit the recipe will turn timers on.
+        </p>
       ) : !mounted ? (
         <p className="text-sm text-ink-muted" aria-live="polite">
           Calculating schedule from your device clock…
         </p>
       ) : preview ? (
-        <div className="rounded-xl bg-terracotta-tint/70 px-4 py-3.5 text-sm text-ink">
+        <div className="space-y-2 rounded-xl bg-terracotta-tint/70 px-4 py-3.5 text-sm text-ink">
+          {props.timingEstimated ? (
+            <p className="text-xs text-ink-muted">
+              Some times are estimated from the step wording, since this recipe doesn&apos;t set them
+              explicitly.
+            </p>
+          ) : null}
           {preview.kind === "start_now" ? (
             <p>
               <span className="font-semibold text-terracotta-strong">If you start now:</span>{" "}

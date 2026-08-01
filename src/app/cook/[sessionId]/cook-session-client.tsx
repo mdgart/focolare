@@ -15,6 +15,7 @@ import {
   transcriptMeansStartTimer,
 } from "@/lib/android-voice-cook";
 import { formatDurationClock } from "@/lib/format-duration";
+import { useWakeLock } from "@/components/useWakeLock";
 
 type TimelineJson = {
   title: string;
@@ -39,6 +40,9 @@ export function CookSessionClient(props: {
   const [now, setNow] = useState(() => Date.now());
   const [timerArmedAt, setTimerArmedAt] = useState<number | null>(() => props.initialTimerArmedAtMs ?? null);
   const [pendingArm, setPendingArm] = useState(false);
+  /** On by default — the whole point of a cook screen is that you can glance at it. */
+  const [keepAwake, setKeepAwake] = useState(true);
+  const wakeLock = useWakeLock(keepAwake);
   const step = props.timeline[idx];
 
   const [voiceOn, setVoiceOn] = useState(false);
@@ -240,9 +244,40 @@ export function CookSessionClient(props: {
   return (
     <div className="flex min-h-0 flex-col justify-between rounded-2xl border border-stone-200/90 bg-white p-6 shadow-md ring-1 ring-stone-100 sm:min-h-[50vh] sm:p-8">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-amber-900/60">
-          Step {idx + 1} / {props.timeline.length}
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-amber-900/60">
+            Step {idx + 1} / {props.timeline.length}
+          </p>
+          {wakeLock.supported ? (
+            <button
+              type="button"
+              onClick={() => setKeepAwake((v) => !v)}
+              aria-pressed={keepAwake}
+              title={
+                keepAwake
+                  ? "Your screen is being kept on while you cook"
+                  : "Your screen will dim and lock as usual"
+              }
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                keepAwake
+                  ? "border-amber-300 bg-amber-50 text-amber-900"
+                  : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-3.5 w-3.5" aria-hidden="true">
+                {keepAwake ? (
+                  <>
+                    <circle cx="10" cy="10" r="3.25" />
+                    <path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1L4.7 4.7" strokeLinecap="round" />
+                  </>
+                ) : (
+                  <path d="M16 11.5A6.5 6.5 0 0 1 8.5 4a6.5 6.5 0 1 0 7.5 7.5z" strokeLinejoin="round" />
+                )}
+              </svg>
+              {keepAwake ? "Screen stays on" : "Screen can sleep"}
+            </button>
+          ) : null}
+        </div>
         <h1 className="mt-3 text-2xl font-semibold leading-tight text-stone-900">{step.title}</h1>
         <p className="mt-2 text-sm text-stone-600">{props.recipeTitle}</p>
 
@@ -259,7 +294,7 @@ export function CookSessionClient(props: {
           </p>
         ) : null}
       </div>
-      <div className="my-6 text-center sm:my-8">
+      <div className={step.durationSeconds > 0 ? "my-6 text-center sm:my-8" : ""}>
         {step.durationSeconds > 0 ? (
           <>
             <div className="rounded-2xl border border-amber-200/80 bg-gradient-to-b from-amber-50 to-orange-50/80 px-4 py-6">
@@ -281,9 +316,7 @@ export function CookSessionClient(props: {
               </button>
             ) : null}
           </>
-        ) : (
-          <p className="text-stone-600">No timer for this step.</p>
-        )}
+        ) : null}
       </div>
 
       {showVoiceUi ? (

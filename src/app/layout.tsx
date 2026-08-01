@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import Link from "next/link";
+import { ChromeGate, MainShell } from "@/components/ChromeGate";
 import { Header } from "@/components/Header";
 import { getPublicLogoSvgUrl, getPublicLogoUrl } from "@/lib/public-logo-url";
 import "./globals.css";
@@ -57,10 +58,11 @@ export default function RootLayout({
         className="flex min-h-full flex-col overflow-x-hidden bg-background text-ink antialiased"
         suppressHydrationWarning
       >
-        <Header />
-        <main className="mx-auto w-full min-w-0 max-w-[1400px] flex-1 px-4 py-6 sm:px-6 lg:px-8 print:max-w-none print:bg-white print:px-6 print:py-6 print:text-neutral-900">
-          {children}
-        </main>
+        <ChromeGate>
+          <Header />
+        </ChromeGate>
+        <MainShell>{children}</MainShell>
+        <ChromeGate>
         <footer className="mt-16 border-t border-sand bg-surface print:hidden">
           <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-8 px-4 py-10 sm:px-6 md:flex-row md:items-start md:justify-between lg:px-8">
             <div className="max-w-sm">
@@ -94,6 +96,7 @@ export default function RootLayout({
             </p>
           </div>
         </footer>
+        </ChromeGate>
       </body>
     </html>
   );
