@@ -21,6 +21,9 @@ type TimelineJson = {
   startMs: number;
   endMs: number;
   durationSeconds: number;
+  /** What to actually do — the point of cook mode. */
+  instruction: string;
+  imageUrl: string | null;
 };
 
 const VOICE_COOLDOWN_MS = 1200;
@@ -242,6 +245,19 @@ export function CookSessionClient(props: {
         </p>
         <h1 className="mt-3 text-2xl font-semibold leading-tight text-stone-900">{step.title}</h1>
         <p className="mt-2 text-sm text-stone-600">{props.recipeTitle}</p>
+
+        {step.imageUrl ? (
+          <div className="relative mt-4 aspect-video w-full max-w-md overflow-hidden rounded-xl ring-1 ring-stone-200">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={step.imageUrl} alt="" className="h-full w-full object-cover" />
+          </div>
+        ) : null}
+
+        {step.instruction ? (
+          <p className="mt-4 whitespace-pre-line text-base leading-relaxed text-stone-800 sm:text-lg">
+            {step.instruction}
+          </p>
+        ) : null}
       </div>
       <div className="my-6 text-center sm:my-8">
         {step.durationSeconds > 0 ? (
