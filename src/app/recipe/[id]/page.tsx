@@ -8,6 +8,7 @@ import { isRecipeSaved } from "@/actions/saved";
 import { isAdminSessionUser } from "@/lib/admin-auth";
 import { canViewRecipe } from "@/lib/recipe-access";
 import { humanDurationSeconds } from "@/lib/format-duration";
+import { effectiveStepSeconds, totalRecipeSeconds } from "@/lib/infer-duration";
 import { ingredientSystemTitle } from "@/lib/ingredient-measure";
 import { RecipePrintButton } from "@/components/RecipePrintButton";
 import { CreatorProfileBar } from "@/components/CreatorProfileBar";
@@ -65,14 +66,18 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
     isRecipeSaved(id),
   ]);
 
+  // Where a cook wrote the timing in prose but left the duration field empty,
+  // read it back out of the text — otherwise the planner treats the step as
+  // instant and reports "start 12:30, ready 12:30".
   const cookStepInputs: StepInput[] = steps.map((s) => ({
     position: s.position,
     title: s.title,
-    durationSeconds: s.durationSeconds,
+    durationSeconds: effectiveStepSeconds(s).seconds || null,
     offsetFromPrevious: s.offsetFromPrevious,
   }));
 
-  const totalDurationSeconds = steps.reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
+  const totalTime = totalRecipeSeconds(steps);
+  const totalDurationSeconds = totalTime.seconds;
   const totalDurationLabel = humanDurationSeconds(totalDurationSeconds);
 
   const h = await headers();
@@ -236,7 +241,10 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
           {/* Quick stats */}
           {totalDurationSeconds > 0 && (
             <div className="grid grid-cols-3 divide-x divide-sand overflow-hidden rounded-2xl border border-sand bg-surface print:hidden">
-              <RecipeStat label="Active time" value={totalDurationLabel} />
+              <RecipeStat
+                label={totalTime.estimated ? "Time (estimated)" : "Active time"}
+                value={totalDurationLabel}
+              />
               <RecipeStat label="Steps" value={String(steps.length)} />
               <RecipeStat label="Ingredients" value={String(r.ingredients?.length ?? 0)} />
             </div>
@@ -368,7 +376,11 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
         <aside className="mt-10 lg:mt-0 print:hidden">
           <div className="lg:sticky lg:top-24">
             {session?.user ? (
-              <StartCookForm recipeId={r.id} stepInputs={cookStepInputs} />
+              <StartCookForm
+                recipeId={r.id}
+                stepInputs={cookStepInputs}
+                timingEstimated={totalTime.estimated}
+              />
             ) : (
               <div className="rounded-3xl border border-sand bg-surface p-6 text-center">
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-terracotta">
