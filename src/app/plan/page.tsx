@@ -26,7 +26,13 @@ export default async function MealPlansPage() {
         </p>
       </div>
 
-      <NewPlanForm />
+      <NewPlanForm
+        existing={plans.map((p) => ({
+          title: p.title,
+          startDate: p.startDate,
+          endDate: p.endDate,
+        }))}
+      />
 
       {plans.length === 0 ? (
         <div className="rounded-3xl border border-dashed border-sand-strong bg-surface/60 px-6 py-14 text-center">

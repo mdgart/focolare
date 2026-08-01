@@ -22,6 +22,8 @@ import {
 } from "@/lib/meal-reminders";
 import {
   addDays,
+  findOverlap,
+  formatPlanDate,
   isMealTime,
   isPlanDate,
   MAX_PLAN_DAYS,
@@ -83,6 +85,34 @@ async function requirePlan(planId: string): Promise<PlanGuard> {
   return { ok: true, plan, userId: session.user.id };
 }
 
+/**
+ * Plans must not overlap.
+ *
+ * Two plans covering the same day would each generate a shopping list for it and
+ * each schedule a reminder for the same dinner, and there would be no answer to
+ * "what am I cooking on Thursday". Enforced here rather than only in the form,
+ * since a stale page can still submit.
+ */
+async function findConflictingPlan(
+  userId: string,
+  range: { startDate: string; endDate: string },
+  excludePlanId?: string,
+): Promise<{ title: string; startDate: string; endDate: string } | null> {
+  const existing = await db
+    .select({ id: mealPlan.id, title: mealPlan.title, startDate: mealPlan.startDate, endDate: mealPlan.endDate })
+    .from(mealPlan)
+    .where(eq(mealPlan.userId, userId));
+
+  return findOverlap(
+    range,
+    existing.filter((p) => p.id !== excludePlanId),
+  );
+}
+
+function conflictMessage(clash: { title: string; startDate: string; endDate: string }): string {
+  return `Those days overlap “${clash.title}” (${formatPlanDate(clash.startDate)} – ${formatPlanDate(clash.endDate)}). Pick dates outside it.`;
+}
+
 export async function createMealPlanAction(input: {
   title?: string;
   startDate: string;
@@ -97,13 +127,17 @@ export async function createMealPlanAction(input: {
   if (!Number.isFinite(days) || days < 1) return { error: "A plan needs at least one day." };
   if (days > MAX_PLAN_DAYS) return { error: `Plans can cover at most ${MAX_PLAN_DAYS} days.` };
 
+  const endDate = addDays(input.startDate, days - 1);
+  const clash = await findConflictingPlan(session.user.id, { startDate: input.startDate, endDate });
+  if (clash) return { error: conflictMessage(clash) };
+
   const [row] = await db
     .insert(mealPlan)
     .values({
       userId: session.user.id,
       title: input.title?.trim() || "Meal plan",
       startDate: input.startDate,
-      endDate: addDays(input.startDate, days - 1),
+      endDate,
       timezone: isValidTimeZone(input.timezone) ? input.timezone : "UTC",
     })
     .returning({ id: mealPlan.id });
@@ -194,6 +228,9 @@ export async function updateMealPlanAction(input: {
   const days = planDayCount(startDate, endDate);
   if (days < 1) return { error: "The end date is before the start date." };
   if (days > MAX_PLAN_DAYS) return { error: `Plans can cover at most ${MAX_PLAN_DAYS} days.` };
+
+  const clash = await findConflictingPlan(guard.userId, { startDate, endDate }, input.planId);
+  if (clash) return { error: conflictMessage(clash) };
 
   await db
     .update(mealPlan)

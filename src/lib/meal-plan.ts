@@ -99,6 +99,52 @@ export function todayInZone(timeZone: string): string {
   }
 }
 
+export type DateRange = { startDate: string; endDate: string };
+
+/**
+ * Do two inclusive ranges share any day?
+ *
+ * Plain string comparison is safe because plan dates are zero-padded
+ * 'YYYY-MM-DD', which sorts chronologically.
+ */
+export function rangesOverlap(a: DateRange, b: DateRange): boolean {
+  return a.startDate <= b.endDate && b.startDate <= a.endDate;
+}
+
+/** The range in `taken` that collides with `candidate`, if any. */
+export function findOverlap<T extends DateRange>(candidate: DateRange, taken: T[]): T | null {
+  return taken.find((t) => rangesOverlap(candidate, t)) ?? null;
+}
+
+/** The earliest day at or after `from` that no existing range covers. */
+export function firstFreeDate(from: string, taken: DateRange[]): string {
+  let candidate = from;
+  // Ranges are capped at 31 days and users have few plans, so walking forward
+  // range by range settles immediately.
+  for (let guard = 0; guard < 400; guard++) {
+    const clash = taken.find((t) => candidate >= t.startDate && candidate <= t.endDate);
+    if (!clash) return candidate;
+    candidate = addDays(clash.endDate, 1);
+  }
+  return candidate;
+}
+
+/**
+ * How many days a plan starting on `start` can cover before it would run into
+ * an existing one. Returns 0 when the start day itself is already taken.
+ */
+export function daysAvailableFrom(start: string, taken: DateRange[], cap = MAX_PLAN_DAYS): number {
+  if (taken.some((t) => start >= t.startDate && start <= t.endDate)) return 0;
+
+  const nextStart = taken
+    .map((t) => t.startDate)
+    .filter((d) => d > start)
+    .sort()[0];
+
+  if (!nextStart) return cap;
+  return Math.min(cap, planDayCount(start, nextStart) - 1);
+}
+
 const TIME_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export function isMealTime(value: string): boolean {
