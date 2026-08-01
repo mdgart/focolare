@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { cookSession, pushSubscription, scheduledStepEvent, user } from "@/db/schema";
 import { cookNotifyChannelsAvailable, sendCookTimerEmail, sendCookTimerSms } from "@/lib/cook-timer-notify";
 import { PLAN_LIMITS, type Plan } from "@/lib/entitlements";
-import type { PushPayloadV1 } from "@/lib/notifications-types";
+import { isMealReminderPayload, type AnyPushPayload } from "@/lib/notifications-types";
 
 function configureWebPush() {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
@@ -35,13 +35,21 @@ export async function dispatchDuePushEvents(): Promise<{
 
   let sent = 0;
   for (const ev of due) {
-    const payload = ev.pushPayload as PushPayloadV1;
-    const [session] = await db
-      .select({ userId: cookSession.userId })
-      .from(cookSession)
-      .where(eq(cookSession.id, ev.cookSessionId))
-      .limit(1);
-    if (!session) {
+    const payload = ev.pushPayload as AnyPushPayload;
+
+    // Events carry their recipient directly (meal reminders) or inherit it from
+    // the cook session (timers). Preferring the column keeps the cook path
+    // unchanged while letting an event exist without a session at all.
+    let recipientUserId = ev.userId;
+    if (!recipientUserId && ev.cookSessionId) {
+      const [session] = await db
+        .select({ userId: cookSession.userId })
+        .from(cookSession)
+        .where(eq(cookSession.id, ev.cookSessionId))
+        .limit(1);
+      recipientUserId = session?.userId ?? null;
+    }
+    if (!recipientUserId) {
       await db
         .update(scheduledStepEvent)
         .set({ status: "skipped", processedAt: new Date() })
@@ -58,13 +66,17 @@ export async function dispatchDuePushEvents(): Promise<{
         plan: user.plan,
       })
       .from(user)
-      .where(eq(user.id, session.userId))
+      .where(eq(user.id, recipientUserId))
       .limit(1);
 
     const subs = await db
       .select()
       .from(pushSubscription)
-      .where(eq(pushSubscription.userId, session.userId));
+      .where(eq(pushSubscription.userId, recipientUserId));
+
+    // Email and SMS renderers are written against the cook payload's fields, so
+    // meal reminders go out over web push only until those are generalised too.
+    const webPushOnly = isMealReminderPayload(payload);
 
     const channels = cookNotifyChannelsAvailable();
     let delivered = false;
@@ -89,7 +101,7 @@ export async function dispatchDuePushEvents(): Promise<{
       }
     }
 
-    if (u?.notifyCookTimerEmail && u.email && channels.smtp) {
+    if (!webPushOnly && u?.notifyCookTimerEmail && u.email && channels.smtp) {
       anyChannelAttempted = true;
       try {
         if (await sendCookTimerEmail(u.email, payload)) delivered = true;
@@ -100,7 +112,7 @@ export async function dispatchDuePushEvents(): Promise<{
 
     // SMS costs real money per message, so it is a paid-plan channel.
     const smsEntitled = PLAN_LIMITS[(u?.plan as Plan) ?? "free"].smsNotifications;
-    if (smsEntitled && u?.notifyCookTimerSms && u.phoneE164?.trim() && channels.twilio) {
+    if (!webPushOnly && smsEntitled && u?.notifyCookTimerSms && u.phoneE164?.trim() && channels.twilio) {
       anyChannelAttempted = true;
       try {
         if (await sendCookTimerSms(u.phoneE164.trim(), payload)) delivered = true;

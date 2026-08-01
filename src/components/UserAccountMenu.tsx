@@ -105,6 +105,11 @@ export function UserAccountMenu({ email, name, profileHref, avatarUrl, inProgres
             <span className="text-xs text-ink-muted">Recipes to cook later</span>
           </MenuLink>
 
+          <MenuLink href="/plan" onClick={close}>
+            <span>Meal plans</span>
+            <span className="text-xs text-ink-muted">Plan a week, get a shopping list</span>
+          </MenuLink>
+
           <MenuLink href="/preparations" onClick={close}>
             <span className="flex items-center gap-2">
               In progress
@@ -122,6 +127,10 @@ export function UserAccountMenu({ email, name, profileHref, avatarUrl, inProgres
           </MenuLink>
 
           <div className="my-1.5 border-t border-sand" />
+
+          <MenuLink href="/pantry" onClick={close}>
+            <span>Pantry staples</span>
+          </MenuLink>
 
           <MenuLink href="/account" onClick={close}>
             <span>Account settings</span>
