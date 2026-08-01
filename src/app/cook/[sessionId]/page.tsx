@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { cookSession, recipe, recipeStep, scheduledStepEvent } from "@/db/schema";
+import { cookSession, mediaAsset, recipe, recipeStep, scheduledStepEvent } from "@/db/schema";
 import { getServerSession } from "@/lib/session";
 import { buildForwardTimeline, type StepInput } from "@/lib/cook-schedule";
 import { CookSessionClient } from "./cook-session-client";
@@ -35,14 +35,29 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
     offsetFromPrevious: s.offsetFromPrevious,
   }));
 
+  const stepMediaIds = [...new Set(steps.map((s) => s.imageMediaId).filter((x): x is string => Boolean(x)))];
+  const stepImageUrls: Record<string, string> = {};
+  if (stepMediaIds.length > 0) {
+    const rows = await db
+      .select({ id: mediaAsset.id, publicUrl: mediaAsset.publicUrl })
+      .from(mediaAsset)
+      .where(inArray(mediaAsset.id, stepMediaIds));
+    for (const row of rows) stepImageUrls[row.id] = row.publicUrl;
+  }
+
   const t0 = new Date(cs.plannedStartAt ?? cs.startedAt ?? new Date(0)).getTime();
   const timeline = buildForwardTimeline(stepInputs, t0);
 
-  const timelineJson = timeline.map((t) => ({
+  // buildForwardTimeline only computes timing, so the text a cook actually follows
+  // has to be zipped back in from the step rows — without this, cook mode shows a
+  // title and a timer but never says what to do.
+  const timelineJson = timeline.map((t, i) => ({
     title: t.title,
     startMs: t.startMs,
     endMs: t.endMs,
     durationSeconds: t.durationSeconds,
+    instruction: steps[i]?.instruction ?? "",
+    imageUrl: stepImageUrls[steps[i]?.imageMediaId ?? ""] ?? null,
   }));
 
   const stepIdx = Math.min(Math.max(0, cs.currentStepIndex), Math.max(0, steps.length - 1));
