@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { listGroceryItems } from "@/actions/grocery";
 import { getMealPlanForOwner } from "@/actions/meal-plans";
@@ -18,6 +19,13 @@ export default async function PlanPage({ params }: { params: Promise<{ planId: s
 
   const groceries = await listGroceryItems(planId);
 
+  // Resolved here, not in the client: reading window during render makes the
+  // server and client output differ, which is a hydration mismatch.
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  const origin = host ? `${proto}://${host}` : "";
+
   return (
     <div className="mx-auto min-w-0 max-w-5xl space-y-10">
       <div className="pt-2 sm:pt-6">
@@ -26,7 +34,7 @@ export default async function PlanPage({ params }: { params: Promise<{ planId: s
         </Link>
       </div>
 
-      <PlannerClient plan={plan} />
+      <PlannerClient plan={plan} origin={origin} />
       <GrocerySection planId={planId} initialItems={groceries} />
     </div>
   );

@@ -25,7 +25,7 @@ import { RecipePicker } from "./recipe-picker";
 /** Common answers to "how long have you got?", in minutes. */
 const TIME_CHOICES = [15, 30, 45, 60, 90, 120];
 
-export function PlannerClient({ plan }: { plan: PlanDetail }) {
+export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: string }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -72,10 +72,8 @@ export function PlannerClient({ plan }: { plan: PlanDetail }) {
     );
   }
 
-  const shareUrl =
-    shareSlug && typeof window !== "undefined"
-      ? `${window.location.origin}/plan/shared/${shareSlug}`
-      : null;
+  // origin comes from the server so this string is identical in both renders.
+  const shareUrl = shareSlug ? `${origin}/plan/shared/${shareSlug}` : null;
 
   return (
     <div className="space-y-6">

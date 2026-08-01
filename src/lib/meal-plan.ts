@@ -70,8 +70,16 @@ export function enumerateDates(startDate: string, endDate: string): string[] {
   return Array.from({ length: count }, (_, i) => addDays(startDate, i));
 }
 
-/** "Sat 1 Aug" — for day column headers. */
-export function formatPlanDate(date: string, locale?: string): string {
+/**
+ * "Sat 1 Aug" — for day column headers.
+ *
+ * The locale is pinned rather than left to the runtime. These dates render
+ * inside client components that are server-rendered first, and an unpinned
+ * `Intl` uses the *server's* locale during SSR and the *browser's* on
+ * hydration — "Sat 1 Aug" against "sab 1 ago" is a hydration mismatch. The
+ * app's copy is English throughout, so English formatting is consistent with it.
+ */
+export function formatPlanDate(date: string, locale = "en-GB"): string {
   const [y, m, d] = date.split("-").map(Number);
   return new Intl.DateTimeFormat(locale, {
     weekday: "short",
