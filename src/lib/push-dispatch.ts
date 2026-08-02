@@ -1,5 +1,5 @@
 import webpush from "web-push";
-import { and, eq, lte } from "drizzle-orm";
+import { and, eq, isNull, lte } from "drizzle-orm";
 import { db } from "@/db";
 import { cookSession, pushSubscription, scheduledStepEvent, user } from "@/db/schema";
 import { cookNotifyChannelsAvailable, sendCookTimerEmail, sendCookTimerSms } from "@/lib/cook-timer-notify";
@@ -29,6 +29,9 @@ export async function dispatchDuePushEvents(): Promise<{
       and(
         eq(scheduledStepEvent.status, "pending"),
         lte(scheduledStepEvent.fireAt, now),
+        // A paused timer keeps its row so it can be resumed; it must not fire
+        // in the meantime, however long the break runs past its old due time.
+        isNull(scheduledStepEvent.pausedRemainingSeconds),
       ),
     )
     .limit(50);

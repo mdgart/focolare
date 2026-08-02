@@ -47,8 +47,9 @@ export function RecipePicker({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  /** Held back for taking longer than this meal allows; 0 once they're shown. */
+  /** Held back by the slot's time limit or meal tag; 0 once they're shown. */
   const [overTime, setOverTime] = useState(0);
+  const [wrongMeal, setWrongMeal] = useState(0);
   const [timeLimit, setTimeLimit] = useState<number | null>(null);
 
   useEffect(() => {
@@ -69,6 +70,7 @@ export function RecipePicker({
         }
         setSuggestions(res.suggestions.map(toRow));
         setOverTime(res.overTime);
+        setWrongMeal(res.wrongMeal);
         setTimeLimit(res.timeAvailableMinutes);
       });
     return () => {
@@ -76,10 +78,11 @@ export function RecipePicker({
     };
   }, [planId, slotId]);
 
-  function showOverTime() {
+  function showHeldBack() {
     setLoading(true);
     setOverTime(0);
-    void suggestRecipesForSlotAction({ planId, slotId, ignoreTimeLimit: true }).then((res) => {
+    setWrongMeal(0);
+    void suggestRecipesForSlotAction({ planId, slotId, ignoreFilters: true }).then((res) => {
       setLoading(false);
       if ("error" in res) {
         setError(res.error);
@@ -193,8 +196,8 @@ export function RecipePicker({
           <p className="py-8 text-center text-sm text-ink-muted">
             {tab !== "suggested"
               ? "Nothing matched that."
-              : overTime > 0
-                ? `Nothing in your recipes fits ${timeLimit} minutes.`
+              : overTime + wrongMeal > 0
+                ? `Nothing in your recipes fits this ${MEAL_LABEL[meal].toLowerCase()}.`
                 : "No suggestions yet — try searching, or save a few recipes first."}
           </p>
         ) : null}
@@ -234,14 +237,13 @@ export function RecipePicker({
           </ul>
         ) : null}
 
-        {!loading && tab === "suggested" && overTime > 0 ? (
+        {!loading && tab === "suggested" && overTime + wrongMeal > 0 ? (
           <button
             type="button"
-            onClick={showOverTime}
+            onClick={showHeldBack}
             className="mt-4 w-full rounded-xl border border-dashed border-sand-strong px-4 py-3 text-sm text-ink-muted transition hover:border-terracotta hover:text-terracotta-strong"
           >
-            {overTime} {overTime === 1 ? "recipe needs" : "recipes need"} longer than {timeLimit} min
-            — show {overTime === 1 ? "it" : "them"} anyway
+            {heldBackReason({ overTime, wrongMeal, timeLimit, meal })} — show them anyway
           </button>
         ) : null}
       </div>
@@ -258,4 +260,22 @@ function toRow(s: ScoredSuggestion): Row {
     estimated: s.estimated,
     reasons: s.reasons,
   };
+}
+
+/** Names whichever constraint held recipes back, so the offer isn't a mystery. */
+function heldBackReason(args: {
+  overTime: number;
+  wrongMeal: number;
+  timeLimit: number | null;
+  meal: MealType;
+}): string {
+  const { overTime, wrongMeal, timeLimit, meal } = args;
+  const total = overTime + wrongMeal;
+  const count = `${total} ${total === 1 ? "recipe" : "recipes"}`;
+
+  if (overTime > 0 && wrongMeal > 0) return `${count} don't fit this slot`;
+  if (overTime > 0) return `${count} need longer than ${timeLimit} min`;
+  return `${count} ${total === 1 ? "is" : "are"} tagged for another meal, not ${MEAL_LABEL[
+    meal
+  ].toLowerCase()}`;
 }

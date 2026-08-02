@@ -9,6 +9,7 @@ import { isAdminSessionUser } from "@/lib/admin-auth";
 import { blockedFromPublishing } from "@/lib/email-verification";
 import { getOrCreateChannelForUser } from "@/lib/ensure-channel";
 import { normalizeLanguage } from "@/lib/languages";
+import { normalizeMealTags } from "@/lib/meal-tags";
 import { moderateContent, recipeToModerationText } from "@/lib/moderation";
 import { slugify } from "@/lib/slug";
 import { getServerSession } from "@/lib/session";
@@ -245,6 +246,8 @@ export async function createRecipeAction(form: {
   ingredientMeasureSystem: "metric" | "us";
   /** How many it makes. Null or omitted when the recipe doesn't say. */
   servings?: number | null;
+  /** Occasions it's for. Empty means untagged, which suits any meal. */
+  mealTimes?: string[];
   ingredients: { name: string; amount?: string; unit?: string }[];
   tags: string[];
   steps: {
@@ -321,6 +324,7 @@ export async function createRecipeAction(form: {
           ingredients: form.ingredients,
           ingredientMeasureSystem,
           servings: normalizeServings(form.servings),
+          mealTimes: normalizeMealTags(form.mealTimes),
           visibility: form.visibility,
           publishedAt: form.publish === false ? null : new Date(),
           coverMediaId: form.coverMediaId ?? null,
@@ -363,6 +367,7 @@ export async function updateRecipeAction(
     publish?: boolean;
     ingredientMeasureSystem: "metric" | "us";
     servings?: number | null;
+    mealTimes?: string[];
     ingredients: { name: string; amount?: string; unit?: string }[];
     tags: string[];
     steps: {
@@ -450,6 +455,7 @@ export async function updateRecipeAction(
       ingredients: form.ingredients,
       ingredientMeasureSystem,
       servings: normalizeServings(form.servings),
+      mealTimes: normalizeMealTags(form.mealTimes),
       visibility: form.visibility,
       coverMediaId: form.coverMediaId ?? null,
       language: normalizeLanguage(form.language),

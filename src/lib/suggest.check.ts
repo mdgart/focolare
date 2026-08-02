@@ -7,6 +7,7 @@
  * you follow" may put a three-day recipe in a 60-minute slot.
  */
 import { fitsInTime, rankCandidates, type SuggestionCandidate } from "@/lib/suggest";
+import { suitsMealSlot } from "@/lib/meal-tags";
 
 let failures = 0;
 function check(label: string, actual: unknown, expected: unknown) {
@@ -44,6 +45,7 @@ function candidate(over: Partial<SuggestionCandidate> & { recipeId: string }): S
     timesCooked: 0,
     cookedWithinAWeek: false,
     popularity: 0,
+    mealTags: [],
     ...over,
   };
 }
@@ -64,7 +66,7 @@ const ranked = rankCandidates(
     candidate({ recipeId: "fudge-cake", totalSeconds: 54 * MIN }),
     candidate({ recipeId: "no-time-given", totalSeconds: 0 }),
   ],
-  { timeAvailableMinutes: 60, covered: new Set(), recipeIdsInPlan: new Set() },
+  { meal: "dinner", timeAvailableMinutes: 60, covered: new Set(), recipeIdsInPlan: new Set() },
 );
 
 check(
@@ -78,9 +80,60 @@ const noLimit = rankCandidates(
     candidate({ recipeId: "preserved-garlic", totalSeconds: 90 * 86400, isSaved: true }),
     candidate({ recipeId: "fudge-cake", totalSeconds: 54 * MIN }),
   ],
-  { timeAvailableMinutes: null, covered: new Set(), recipeIdsInPlan: new Set() },
+  { meal: "dinner", timeAvailableMinutes: null, covered: new Set(), recipeIdsInPlan: new Set() },
 );
 check("with no limit, long recipes are still offered", noLimit.length, 2);
+
+/* ---------- meal tags ---------- */
+
+check("an untagged recipe suits any sitting", suitsMealSlot([], "dinner"), true);
+check("...and so does one tagged only with junk", suitsMealSlot(["elevenses"], "dinner"), true);
+check("a breakfast loaf is not dinner", suitsMealSlot(["breakfast"], "dinner"), false);
+check("a dinner recipe is dinner", suitsMealSlot(["dinner"], "dinner"), true);
+check("brunch covers breakfast", suitsMealSlot(["brunch"], "breakfast"), true);
+check("brunch covers lunch", suitsMealSlot(["brunch"], "lunch"), true);
+check("brunch is not dinner", suitsMealSlot(["brunch"], "dinner"), false);
+check("a dessert is not a dinner", suitsMealSlot(["dessert"], "dinner"), false);
+check("several tags mean any of them", suitsMealSlot(["breakfast", "dinner"], "dinner"), true);
+
+// The reported case: a loaf tagged for breakfast, offered for dinner.
+const dinnerPicks = rankCandidates(
+  [
+    candidate({ recipeId: "country-loaf", mealTags: ["breakfast"], isSaved: true, timesCooked: 4 }),
+    candidate({ recipeId: "tiramisu", mealTags: ["dessert"], isSaved: true }),
+    candidate({ recipeId: "ragu", mealTags: ["dinner"] }),
+    candidate({ recipeId: "untagged-stew" }),
+  ],
+  { meal: "dinner", timeAvailableMinutes: null, covered: new Set(), recipeIdsInPlan: new Set() },
+);
+check(
+  "breakfast and dessert recipes stay out of dinner, untagged ones don't",
+  dinnerPicks.map((r) => r.recipeId).sort(),
+  ["ragu", "untagged-stew"],
+);
+check(
+  "a recipe made for the sitting outranks one merely allowed",
+  dinnerPicks[0]?.recipeId,
+  "ragu",
+);
+check(
+  "...and says why",
+  dinnerPicks[0]?.reasons.includes("Made for dinner"),
+  true,
+);
+
+const breakfastPicks = rankCandidates(
+  [
+    candidate({ recipeId: "country-loaf", mealTags: ["breakfast"] }),
+    candidate({ recipeId: "ragu", mealTags: ["dinner"] }),
+  ],
+  { meal: "breakfast", timeAvailableMinutes: null, covered: new Set(), recipeIdsInPlan: new Set() },
+);
+check(
+  "the same loaf is welcome at breakfast",
+  breakfastPicks.map((r) => r.recipeId),
+  ["country-loaf"],
+);
 
 console.log(failures === 0 ? "\nall passed" : `\n${failures} failed`);
 if (failures > 0) process.exit(1);

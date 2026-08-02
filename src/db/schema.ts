@@ -253,6 +253,11 @@ export const recipe = pgTable(
       .default("metric"),
     /** How many it makes. Null when the recipe never said — never guessed. */
     servings: integer("servings"),
+    /** Occasions this is for. Empty means untagged, which suits any meal. */
+    mealTimes: jsonb("meal_times")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     visibility: recipeVisibilityEnum("visibility").notNull().default("public"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     coverMediaId: uuid("cover_media_id").references(() => mediaAsset.id, { onDelete: "set null" }),
@@ -480,6 +485,11 @@ export const scheduledStepEvent = pgTable(
     kind: scheduledEventKindEnum("kind").notNull(),
     fireAt: timestamp("fire_at", { withTimezone: true }).notNull(),
     status: scheduledEventStatusEnum("status").notNull().default("pending"),
+    /**
+     * Set while a cook has the timer paused: the row stays pending so it can be
+     * resumed, but the dispatcher must leave it alone until this is cleared.
+     */
+    pausedRemainingSeconds: integer("paused_remaining_seconds"),
     idempotencyKey: text("idempotency_key").notNull().unique(),
     pushPayload: jsonb("push_payload").$type<Record<string, unknown>>().notNull(),
     processedAt: timestamp("processed_at", { withTimezone: true }),

@@ -6,6 +6,8 @@ import {
   advanceCookStepAction,
   armStepTimerAction,
   completeCookSessionAction,
+  pauseStepTimerAction,
+  resumeStepTimerAction,
   setCookSessionScaleAction,
   skipPendingTimersForCookStepAction,
 } from "@/actions/cook";
@@ -16,6 +18,16 @@ import {
   transcriptMeansNextStep,
   transcriptMeansStartTimer,
 } from "@/lib/android-voice-cook";
+import {
+  advanceWouldStopTimer,
+  armStep,
+  pauseStep,
+  remainingMs as remainingMsFor,
+  resumeStep,
+  retireStep,
+  timerFor,
+  type ArmedTimer,
+} from "@/lib/cook-timers";
 import { formatDurationClock } from "@/lib/format-duration";
 import { useWakeLock } from "@/components/useWakeLock";
 
@@ -36,7 +48,8 @@ export function CookSessionClient(props: {
   recipeTitle: string;
   timeline: TimelineJson[];
   initialStepIndex?: number;
-  initialTimerArmedAtMs?: number | null;
+  /** Every pending timer for the session, by the step it belongs to. */
+  initialArmed?: ArmedTimer[];
   /** Ingredients at this session's scale, for glancing at mid-cook. */
   ingredients?: { amount?: string; unit?: string; name: string }[];
   /** Percent, so 200 means the cook doubled it when they started. */
@@ -44,7 +57,17 @@ export function CookSessionClient(props: {
 }) {
   const [idx, setIdx] = useState(() => Math.max(0, props.initialStepIndex ?? 0));
   const [now, setNow] = useState(() => Date.now());
-  const [timerArmedAt, setTimerArmedAt] = useState<number | null>(() => props.initialTimerArmedAtMs ?? null);
+  /**
+   * Running timers, by the step each belongs to.
+   *
+   * A list rather than one value, because steps are navigable now — back, and
+   * straight from the all-steps list — and timers are keyed per step on the
+   * server, so a cook can genuinely have two going. Holding one would have
+   * meant forgetting a live timer on screen while it still fired a
+   * notification; cancelling the other on arming would have been worse still,
+   * silently killing a bake someone was relying on.
+   */
+  const [armed, setArmed] = useState<ArmedTimer[]>(() => props.initialArmed ?? []);
   const [pendingArm, setPendingArm] = useState(false);
   const router = useRouter();
 
@@ -57,6 +80,8 @@ export function CookSessionClient(props: {
     [props.cookSessionId, router],
   );
 
+  /** Set when Next would stop a running timer and we've asked first. */
+  const [confirmNext, setConfirmNext] = useState(false);
   /** "steps" while a timer runs is the point: read ahead and get things ready. */
   const [peek, setPeek] = useState<"none" | "steps" | "ingredients">("none");
   /** On by default — the whole point of a cook screen is that you can glance at it. */
@@ -89,15 +114,18 @@ export function CookSessionClient(props: {
   const timelineLenRef = useRef(props.timeline.length);
   timelineLenRef.current = props.timeline.length;
 
+  /** The timer on the step being looked at, running or paused. */
+  const stepTimer = timerFor(armed, idx);
+  const timerArmedAt = stepTimer?.state === "running" ? stepTimer.atMs : null;
+  const timerPaused = stepTimer?.state === "paused";
+
   const timerArmedRef = useRef(false);
   timerArmedRef.current = timerArmedAt != null;
 
   const stepDurationRef = useRef(0);
   stepDurationRef.current = step?.durationSeconds ?? 0;
 
-  useEffect(() => {
-    setTimerArmedAt(null);
-  }, [idx]);
+
 
   async function onDone() {
     const res = await completeCookSessionAction(props.cookSessionId);
@@ -126,7 +154,7 @@ export function CookSessionClient(props: {
         setVoiceHint(res.error);
         return;
       }
-      setTimerArmedAt(Date.now());
+      setArmed((all) => armStep(all, idx, Date.now()));
     } finally {
       setPendingArm(false);
     }
@@ -135,10 +163,48 @@ export function CookSessionClient(props: {
   const armTimerRef = useRef(armTimer);
   armTimerRef.current = armTimer;
 
+  /**
+   * Hold the countdown, or pick it back up.
+   *
+   * The server is told the remaining time so the notification moves with the
+   * break — pausing for ten minutes shouldn't leave a push arriving ten minutes
+   * early. The row stays pending throughout, so a reload during a break finds
+   * the timer paused rather than gone.
+   */
+  const togglePause = useCallback(async () => {
+    if (!step || step.durationSeconds <= 0) return;
+    const current = timerFor(armed, idx);
+    if (!current) return;
+
+    if (current.state === "running") {
+      const left = remainingMsFor(armed, idx, step.durationSeconds, Date.now());
+      setArmed((all) => pauseStep(all, idx, step.durationSeconds, Date.now()));
+      await pauseStepTimerAction({
+        cookSessionId: props.cookSessionId,
+        stepIndex: idx,
+        remainingSeconds: Math.round(left / 1000),
+      });
+      return;
+    }
+
+    setArmed((all) => resumeStep(all, idx, step.durationSeconds, Date.now()));
+    await resumeStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
+  }, [armed, idx, step, props.cookSessionId]);
+
+  /** Back to the full duration — the one thing that legitimately resets a timer. */
+  const restartTimer = useCallback(async () => {
+    if (!step || step.durationSeconds <= 0) return;
+    setArmed((all) => armStep(all, idx, Date.now()));
+    await armStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
+  }, [idx, step, props.cookSessionId]);
+
   const goNext = useCallback(async () => {
     setVoiceHint(null);
     const cur = idx;
     await skipPendingTimersForCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: cur });
+    // Its server-side event was just skipped, so drop only this step's.
+    setArmed((all) => retireStep(all, cur));
+    setConfirmNext(false);
     const nextIdx = Math.min(cur + 1, props.timeline.length - 1);
     setIdx(nextIdx);
     await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: nextIdx });
@@ -146,6 +212,49 @@ export function CookSessionClient(props: {
 
   const goNextRef = useRef(goNext);
   goNextRef.current = goNext;
+
+  /**
+   * Next means "this step is done", which retires its timer.
+   *
+   * That's right when it's what you meant and quietly destructive when it
+   * isn't — a bake you were relying on, gone because you wanted to read the
+   * next line. So when a timer is running on this step, ask first, and point at
+   * the way to read ahead that leaves it alone.
+   */
+  const requestNext = useCallback(async () => {
+    if (advanceWouldStopTimer(armed, idx) && !confirmNext) {
+      setConfirmNext(true);
+      // Said out loud too: the whole point of voice is that nobody is looking.
+      setVoiceHint("That would stop this step's timer — say next again to confirm.");
+      return;
+    }
+    setConfirmNext(false);
+    await goNext();
+  }, [armed, idx, confirmNext, goNext]);
+
+  const requestNextRef = useRef(requestNext);
+  requestNextRef.current = requestNext;
+
+  /**
+   * Move to any step without touching the timer.
+   *
+   * Going back is usually "what did that say again?" while something is on the
+   * hob — cancelling the timer for that would be the opposite of helpful. Only
+   * `goNext` retires a timer, because finishing a step is what ends it. The
+   * index is still persisted, so a reload lands on the step you're actually
+   * looking at.
+   */
+  const goToStep = useCallback(
+    async (to: number) => {
+      const clamped = Math.min(Math.max(0, to), props.timeline.length - 1);
+      if (clamped === idx) return;
+      setVoiceHint(null);
+      setConfirmNext(false);
+      setIdx(clamped);
+      await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: clamped });
+    },
+    [idx, props.cookSessionId, props.timeline.length],
+  );
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 500);
@@ -197,7 +306,7 @@ export function CookSessionClient(props: {
           return;
         }
         if (transcriptMeansNextStep(text) && canNextRef.current && tryVoiceAction()) {
-          void goNextRef.current();
+          void requestNextRef.current();
           return;
         }
         if (transcriptMeansFinish(text) && isLastStepRef.current && tryVoiceAction()) {
@@ -243,10 +352,8 @@ export function CookSessionClient(props: {
 
   const displayMs = useMemo(() => {
     if (!step || step.durationSeconds <= 0) return 0;
-    const durationMs = step.durationSeconds * 1000;
-    if (timerArmedAt == null) return durationMs;
-    return Math.max(0, durationMs - (now - timerArmedAt));
-  }, [step, now, timerArmedAt]);
+    return remainingMsFor(armed, idx, step.durationSeconds, now);
+  }, [step, armed, idx, now]);
 
   const showVoiceUi = androidSpeechRecognitionAvailable();
 
@@ -258,11 +365,36 @@ export function CookSessionClient(props: {
     );
   }
 
-  const needsTimerStart = step.durationSeconds > 0 && timerArmedAt == null;
+  const needsTimerStart = step.durationSeconds > 0 && stepTimer == null;
 
   return (
     <div className="flex min-h-0 flex-col justify-between rounded-2xl border border-stone-200/90 bg-white p-6 shadow-md ring-1 ring-stone-100 sm:min-h-[50vh] sm:p-8">
       <div>
+        {/* Directly under the step counter, at the size of something you're
+            meant to use: reading ahead and checking amounts is most of what a
+            cook does with a spare five minutes, and both were previously small
+            grey pills buried above the Next button. */}
+        <div className="mb-4 flex gap-2">
+          <PeekButton
+            active={peek === "steps"}
+            onClick={() => setPeek(peek === "steps" ? "none" : "steps")}
+            label="All steps"
+            detail={`${props.timeline.length}`}
+          />
+          {props.ingredients && props.ingredients.length > 0 ? (
+            <PeekButton
+              active={peek === "ingredients"}
+              onClick={() => setPeek(peek === "ingredients" ? "none" : "ingredients")}
+              label="Ingredients"
+              detail={
+                props.scalePercent && props.scalePercent !== 100
+                  ? `×${Math.round(props.scalePercent) / 100}`
+                  : `${props.ingredients.length}`
+              }
+            />
+          ) : null}
+        </div>
+
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-widest text-amber-900/60">
             Step {idx + 1} / {props.timeline.length}
@@ -322,7 +454,11 @@ export function CookSessionClient(props: {
               </div>
             </div>
             <p className="mt-3 text-xs font-medium text-stone-500">
-              {needsTimerStart ? "Duration for this step — start the timer when you begin." : "Time left on this step"}
+              {needsTimerStart
+                ? "Duration for this step — start the timer when you begin."
+                : timerPaused
+                  ? "Paused — it stays here until you pick it up again"
+                  : "Time left on this step"}
             </p>
             {needsTimerStart ? (
               <button
@@ -333,7 +469,26 @@ export function CookSessionClient(props: {
               >
                 {pendingArm ? "Starting…" : "Start timer"}
               </button>
-            ) : null}
+            ) : (
+              // A break shouldn't cost you the timer, and starting over is not
+              // the same thing as carrying on.
+              <div className="mt-4 flex justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void togglePause()}
+                  className="rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:bg-amber-50"
+                >
+                  {timerPaused ? "Resume timer" : "Pause timer"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void restartTimer()}
+                  className="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50"
+                >
+                  Restart
+                </button>
+              </div>
+            )}
           </>
         ) : null}
       </div>
@@ -386,44 +541,12 @@ export function CookSessionClient(props: {
         </div>
       ) : null}
 
-      {/* Reading ahead while something simmers is most of what a cook does with
-          a spare five minutes, and the timer is server-side, so this can't
-          disturb it. */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setPeek(peek === "steps" ? "none" : "steps")}
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-            peek === "steps"
-              ? "border-amber-300 bg-amber-50 text-amber-900"
-              : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
-          }`}
-        >
-          All steps
-        </button>
-        {props.ingredients && props.ingredients.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => setPeek(peek === "ingredients" ? "none" : "ingredients")}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-              peek === "ingredients"
-                ? "border-amber-300 bg-amber-50 text-amber-900"
-                : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
-            }`}
-          >
-            Ingredients
-            {props.scalePercent && props.scalePercent !== 100
-              ? ` (×${Math.round(props.scalePercent) / 100})`
-              : ""}
-          </button>
-        ) : null}
-        {timerArmedAt != null ? (
-          <span className="text-xs text-stone-500">
-            Timer runs even if you close this — you&apos;ll get a notification, and this page comes
-            back where you left it.
-          </span>
-        ) : null}
-      </div>
+      {armed.length > 0 ? (
+        <p className="mb-3 text-xs text-stone-500">
+          Timer runs even if you close this — you&apos;ll get a notification, and this page comes
+          back where you left it.
+        </p>
+      ) : null}
 
       {peek === "steps" ? (
         <ol className="mb-4 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-stone-200 bg-stone-50/70 p-3">
@@ -431,13 +554,21 @@ export function CookSessionClient(props: {
             <li key={i}>
               <button
                 type="button"
-                onClick={() => setIdx(i)}
+                onClick={() => void goToStep(i)}
                 className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-white ${
                   i === idx ? "font-semibold text-stone-900" : "text-stone-600"
                 }`}
               >
                 <span className="w-5 shrink-0 tabular-nums text-xs text-stone-400">{i + 1}</span>
                 <span className="min-w-0 flex-1">{s.title}</span>
+                {armed.some((a) => a.stepIndex === i) ? (
+                  <span
+                    className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-amber-900"
+                    title="A timer is running on this step"
+                  >
+                    timing
+                  </span>
+                ) : null}
                 {s.durationSeconds > 0 ? (
                   <span className="shrink-0 text-xs tabular-nums text-stone-400">
                     {Math.round(s.durationSeconds / 60)}m
@@ -488,12 +619,59 @@ export function CookSessionClient(props: {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      {confirmNext ? (
+        <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
+          <p className="text-sm font-semibold text-amber-950">
+            Moving on stops the timer on this step.
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-900">
+            To read ahead while it keeps running, open <strong>All steps</strong> instead — looking
+            around in there leaves every timer alone.
+          </p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void requestNext()}
+              className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700"
+            >
+              Stop timer & continue
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmNext(false);
+                setPeek("steps");
+              }}
+              className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-amber-900 transition hover:bg-amber-50"
+            >
+              Open all steps
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmNext(false)}
+              className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={idx === 0}
+          onClick={() => void goToStep(idx - 1)}
+          className="shrink-0 rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-white"
+          aria-label="Previous step"
+        >
+          ← Back
+        </button>
         {canNext ? (
           <button
             type="button"
             className="flex-1 rounded-xl border border-stone-300 bg-stone-100 py-3 text-sm font-semibold text-stone-800 shadow-sm transition hover:bg-stone-200"
-            onClick={() => void goNext()}
+            onClick={() => void requestNext()}
           >
             Next step
           </button>
@@ -508,5 +686,35 @@ export function CookSessionClient(props: {
         )}
       </div>
     </div>
+  );
+}
+
+/** Equal-width so the pair reads as one control, and big enough for wet hands. */
+function PeekButton(props: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      aria-pressed={props.active}
+      className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-sm transition ${
+        props.active
+          ? "border-amber-400 bg-amber-50 text-amber-950"
+          : "border-stone-300 bg-white text-stone-700 hover:border-amber-300 hover:text-amber-900"
+      }`}
+    >
+      {props.label}
+      <span
+        className={`rounded-full px-1.5 py-0.5 text-[0.65rem] font-medium tabular-nums ${
+          props.active ? "bg-amber-200/70 text-amber-950" : "bg-stone-100 text-stone-500"
+        }`}
+      >
+        {props.detail}
+      </span>
+    </button>
   );
 }
