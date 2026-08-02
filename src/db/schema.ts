@@ -485,6 +485,11 @@ export const scheduledStepEvent = pgTable(
     kind: scheduledEventKindEnum("kind").notNull(),
     fireAt: timestamp("fire_at", { withTimezone: true }).notNull(),
     status: scheduledEventStatusEnum("status").notNull().default("pending"),
+    /**
+     * Set while a cook has the timer paused: the row stays pending so it can be
+     * resumed, but the dispatcher must leave it alone until this is cleared.
+     */
+    pausedRemainingSeconds: integer("paused_remaining_seconds"),
     idempotencyKey: text("idempotency_key").notNull().unique(),
     pushPayload: jsonb("push_payload").$type<Record<string, unknown>>().notNull(),
     processedAt: timestamp("processed_at", { withTimezone: true }),

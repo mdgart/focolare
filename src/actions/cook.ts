@@ -112,6 +112,86 @@ export async function skipPendingTimersForCookStepAction(input: {
   return { ok: true as const };
 }
 
+/**
+ * Hold a running timer, and its notification with it.
+ *
+ * The row stays `pending` and keeps its idempotency key so resuming is the same
+ * timer rather than a new one; `pausedRemainingSeconds` is what stops the
+ * dispatcher firing it during the break. Skipping the row instead would have
+ * looked, on the next page load, exactly like a timer that vanished for no
+ * reason — which is the thing this whole area is trying not to do.
+ */
+export async function pauseStepTimerAction(input: {
+  cookSessionId: string;
+  stepIndex: number;
+  remainingSeconds: number;
+}): Promise<{ ok: true } | { error: string }> {
+  const session = await getServerSession();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const remaining = Math.max(0, Math.round(input.remainingSeconds));
+  if (!Number.isFinite(remaining)) return { error: "Invalid remaining time" };
+
+  const [cs] = await db
+    .select({ id: cookSession.id })
+    .from(cookSession)
+    .where(and(eq(cookSession.id, input.cookSessionId), eq(cookSession.userId, session.user.id)))
+    .limit(1);
+  if (!cs) return { error: "Not found" };
+
+  await db
+    .update(scheduledStepEvent)
+    .set({ pausedRemainingSeconds: remaining })
+    .where(
+      and(
+        eq(scheduledStepEvent.cookSessionId, input.cookSessionId),
+        eq(scheduledStepEvent.stepIndex, input.stepIndex),
+        eq(scheduledStepEvent.status, "pending"),
+      ),
+    );
+
+  return { ok: true as const };
+}
+
+/** Pick a paused timer back up: it fires `remaining` from now, not from scratch. */
+export async function resumeStepTimerAction(input: {
+  cookSessionId: string;
+  stepIndex: number;
+}): Promise<{ ok: true } | { error: string }> {
+  const session = await getServerSession();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const [cs] = await db
+    .select({ id: cookSession.id })
+    .from(cookSession)
+    .where(and(eq(cookSession.id, input.cookSessionId), eq(cookSession.userId, session.user.id)))
+    .limit(1);
+  if (!cs) return { error: "Not found" };
+
+  const [paused] = await db
+    .select({ id: scheduledStepEvent.id, remaining: scheduledStepEvent.pausedRemainingSeconds })
+    .from(scheduledStepEvent)
+    .where(
+      and(
+        eq(scheduledStepEvent.cookSessionId, input.cookSessionId),
+        eq(scheduledStepEvent.stepIndex, input.stepIndex),
+        eq(scheduledStepEvent.status, "pending"),
+      ),
+    )
+    .limit(1);
+  if (!paused || paused.remaining == null) return { error: "That timer isn't paused." };
+
+  await db
+    .update(scheduledStepEvent)
+    .set({
+      fireAt: new Date(Date.now() + paused.remaining * 1000),
+      pausedRemainingSeconds: null,
+    })
+    .where(eq(scheduledStepEvent.id, paused.id));
+
+  return { ok: true as const };
+}
+
 /** Schedule the push for this step’s timer to fire `duration` after the user starts it. */
 export async function armStepTimerAction(input: {
   cookSessionId: string;

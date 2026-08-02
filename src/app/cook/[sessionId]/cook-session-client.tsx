@@ -6,6 +6,8 @@ import {
   advanceCookStepAction,
   armStepTimerAction,
   completeCookSessionAction,
+  pauseStepTimerAction,
+  resumeStepTimerAction,
   setCookSessionScaleAction,
   skipPendingTimersForCookStepAction,
 } from "@/actions/cook";
@@ -16,6 +18,16 @@ import {
   transcriptMeansNextStep,
   transcriptMeansStartTimer,
 } from "@/lib/android-voice-cook";
+import {
+  advanceWouldStopTimer,
+  armStep,
+  pauseStep,
+  remainingMs as remainingMsFor,
+  resumeStep,
+  retireStep,
+  timerFor,
+  type ArmedTimer,
+} from "@/lib/cook-timers";
 import { formatDurationClock } from "@/lib/format-duration";
 import { useWakeLock } from "@/components/useWakeLock";
 
@@ -37,7 +49,7 @@ export function CookSessionClient(props: {
   timeline: TimelineJson[];
   initialStepIndex?: number;
   /** Every pending timer for the session, by the step it belongs to. */
-  initialArmed?: { stepIndex: number; atMs: number }[];
+  initialArmed?: ArmedTimer[];
   /** Ingredients at this session's scale, for glancing at mid-cook. */
   ingredients?: { amount?: string; unit?: string; name: string }[];
   /** Percent, so 200 means the cook doubled it when they started. */
@@ -55,9 +67,7 @@ export function CookSessionClient(props: {
    * notification; cancelling the other on arming would have been worse still,
    * silently killing a bake someone was relying on.
    */
-  const [armed, setArmed] = useState<{ stepIndex: number; atMs: number }[]>(
-    () => props.initialArmed ?? [],
-  );
+  const [armed, setArmed] = useState<ArmedTimer[]>(() => props.initialArmed ?? []);
   const [pendingArm, setPendingArm] = useState(false);
   const router = useRouter();
 
@@ -104,8 +114,10 @@ export function CookSessionClient(props: {
   const timelineLenRef = useRef(props.timeline.length);
   timelineLenRef.current = props.timeline.length;
 
-  /** Null unless a timer is running for the step being looked at. */
-  const timerArmedAt = armed.find((a) => a.stepIndex === idx)?.atMs ?? null;
+  /** The timer on the step being looked at, running or paused. */
+  const stepTimer = timerFor(armed, idx);
+  const timerArmedAt = stepTimer?.state === "running" ? stepTimer.atMs : null;
+  const timerPaused = stepTimer?.state === "paused";
 
   const timerArmedRef = useRef(false);
   timerArmedRef.current = timerArmedAt != null;
@@ -142,7 +154,7 @@ export function CookSessionClient(props: {
         setVoiceHint(res.error);
         return;
       }
-      setArmed((all) => [...all.filter((a) => a.stepIndex !== idx), { stepIndex: idx, atMs: Date.now() }]);
+      setArmed((all) => armStep(all, idx, Date.now()));
     } finally {
       setPendingArm(false);
     }
@@ -151,12 +163,47 @@ export function CookSessionClient(props: {
   const armTimerRef = useRef(armTimer);
   armTimerRef.current = armTimer;
 
+  /**
+   * Hold the countdown, or pick it back up.
+   *
+   * The server is told the remaining time so the notification moves with the
+   * break — pausing for ten minutes shouldn't leave a push arriving ten minutes
+   * early. The row stays pending throughout, so a reload during a break finds
+   * the timer paused rather than gone.
+   */
+  const togglePause = useCallback(async () => {
+    if (!step || step.durationSeconds <= 0) return;
+    const current = timerFor(armed, idx);
+    if (!current) return;
+
+    if (current.state === "running") {
+      const left = remainingMsFor(armed, idx, step.durationSeconds, Date.now());
+      setArmed((all) => pauseStep(all, idx, step.durationSeconds, Date.now()));
+      await pauseStepTimerAction({
+        cookSessionId: props.cookSessionId,
+        stepIndex: idx,
+        remainingSeconds: Math.round(left / 1000),
+      });
+      return;
+    }
+
+    setArmed((all) => resumeStep(all, idx, step.durationSeconds, Date.now()));
+    await resumeStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
+  }, [armed, idx, step, props.cookSessionId]);
+
+  /** Back to the full duration — the one thing that legitimately resets a timer. */
+  const restartTimer = useCallback(async () => {
+    if (!step || step.durationSeconds <= 0) return;
+    setArmed((all) => armStep(all, idx, Date.now()));
+    await armStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
+  }, [idx, step, props.cookSessionId]);
+
   const goNext = useCallback(async () => {
     setVoiceHint(null);
     const cur = idx;
     await skipPendingTimersForCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: cur });
     // Its server-side event was just skipped, so drop only this step's.
-    setArmed((all) => all.filter((a) => a.stepIndex !== cur));
+    setArmed((all) => retireStep(all, cur));
     setConfirmNext(false);
     const nextIdx = Math.min(cur + 1, props.timeline.length - 1);
     setIdx(nextIdx);
@@ -175,7 +222,7 @@ export function CookSessionClient(props: {
    * the way to read ahead that leaves it alone.
    */
   const requestNext = useCallback(async () => {
-    if (timerArmedAt != null && !confirmNext) {
+    if (advanceWouldStopTimer(armed, idx) && !confirmNext) {
       setConfirmNext(true);
       // Said out loud too: the whole point of voice is that nobody is looking.
       setVoiceHint("That would stop this step's timer — say next again to confirm.");
@@ -183,7 +230,7 @@ export function CookSessionClient(props: {
     }
     setConfirmNext(false);
     await goNext();
-  }, [timerArmedAt, confirmNext, goNext]);
+  }, [armed, idx, confirmNext, goNext]);
 
   const requestNextRef = useRef(requestNext);
   requestNextRef.current = requestNext;
@@ -305,10 +352,8 @@ export function CookSessionClient(props: {
 
   const displayMs = useMemo(() => {
     if (!step || step.durationSeconds <= 0) return 0;
-    const durationMs = step.durationSeconds * 1000;
-    if (timerArmedAt == null) return durationMs;
-    return Math.max(0, durationMs - (now - timerArmedAt));
-  }, [step, now, timerArmedAt]);
+    return remainingMsFor(armed, idx, step.durationSeconds, now);
+  }, [step, armed, idx, now]);
 
   const showVoiceUi = androidSpeechRecognitionAvailable();
 
@@ -320,7 +365,7 @@ export function CookSessionClient(props: {
     );
   }
 
-  const needsTimerStart = step.durationSeconds > 0 && timerArmedAt == null;
+  const needsTimerStart = step.durationSeconds > 0 && stepTimer == null;
 
   return (
     <div className="flex min-h-0 flex-col justify-between rounded-2xl border border-stone-200/90 bg-white p-6 shadow-md ring-1 ring-stone-100 sm:min-h-[50vh] sm:p-8">
@@ -409,7 +454,11 @@ export function CookSessionClient(props: {
               </div>
             </div>
             <p className="mt-3 text-xs font-medium text-stone-500">
-              {needsTimerStart ? "Duration for this step — start the timer when you begin." : "Time left on this step"}
+              {needsTimerStart
+                ? "Duration for this step — start the timer when you begin."
+                : timerPaused
+                  ? "Paused — it stays here until you pick it up again"
+                  : "Time left on this step"}
             </p>
             {needsTimerStart ? (
               <button
@@ -420,7 +469,26 @@ export function CookSessionClient(props: {
               >
                 {pendingArm ? "Starting…" : "Start timer"}
               </button>
-            ) : null}
+            ) : (
+              // A break shouldn't cost you the timer, and starting over is not
+              // the same thing as carrying on.
+              <div className="mt-4 flex justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => void togglePause()}
+                  className="rounded-xl border border-amber-300 bg-white px-4 py-2.5 text-sm font-semibold text-amber-900 shadow-sm transition hover:bg-amber-50"
+                >
+                  {timerPaused ? "Resume timer" : "Pause timer"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void restartTimer()}
+                  className="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-medium text-stone-700 shadow-sm transition hover:bg-stone-50"
+                >
+                  Restart
+                </button>
+              </div>
+            )}
           </>
         ) : null}
       </div>

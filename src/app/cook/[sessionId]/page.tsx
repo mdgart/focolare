@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { cookSession, mediaAsset, recipe, recipeStep, scheduledStepEvent } from "@/db/schema";
 import { getServerSession } from "@/lib/session";
 import { buildForwardTimeline, type StepInput } from "@/lib/cook-schedule";
+import { armedFromPending } from "@/lib/cook-timers";
 import { scaleIngredients } from "@/lib/scale-amount";
 import { CookSessionClient } from "./cook-session-client";
 
@@ -67,7 +68,11 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
   // navigable, so a cook can be reading step 2 while step 3 simmers — and
   // timers are keyed per step server-side, so more than one can be live.
   const pendingTimers = await db
-    .select({ fireAt: scheduledStepEvent.fireAt, stepIndex: scheduledStepEvent.stepIndex })
+    .select({
+      fireAt: scheduledStepEvent.fireAt,
+      stepIndex: scheduledStepEvent.stepIndex,
+      pausedRemainingSeconds: scheduledStepEvent.pausedRemainingSeconds,
+    })
     .from(scheduledStepEvent)
     .where(
       and(
@@ -77,12 +82,16 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
       ),
     );
 
-  const initialArmed = pendingTimers.flatMap((timer) => {
-    if (timer.stepIndex == null) return [];
-    const duration = steps[timer.stepIndex]?.durationSeconds ?? 0;
-    if (duration <= 0) return [];
-    return [{ stepIndex: timer.stepIndex, atMs: timer.fireAt.getTime() - duration * 1000 }];
-  });
+  // Reconstruction lives in lib/cook-timers so it's the same rules the screen
+  // uses, and so it can be checked without a browser.
+  const initialArmed = armedFromPending(
+    pendingTimers.map((t) => ({
+      stepIndex: t.stepIndex,
+      fireAtMs: t.fireAt.getTime(),
+      pausedRemainingSeconds: t.pausedRemainingSeconds,
+    })),
+    steps.map((s) => s.durationSeconds),
+  );
 
   return (
     <div className="space-y-4">
