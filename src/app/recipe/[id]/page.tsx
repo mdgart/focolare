@@ -10,6 +10,7 @@ import { canViewRecipe } from "@/lib/recipe-access";
 import { humanDurationSeconds } from "@/lib/format-duration";
 import { effectiveStepSeconds, totalRecipeSeconds } from "@/lib/infer-duration";
 import { ingredientSystemTitle } from "@/lib/ingredient-measure";
+import { MEAL_TAG_LABEL, normalizeMealTags } from "@/lib/meal-tags";
 import { IngredientPanel } from "./ingredient-panel";
 import { RecipePrintButton } from "@/components/RecipePrintButton";
 import { CreatorProfileBar } from "@/components/CreatorProfileBar";
@@ -257,6 +258,18 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               {ingredientSystemTitle(r.ingredientMeasureSystem ?? "metric")}
             </p>
             <h2 className="mt-1.5">Ingredients</h2>
+            {normalizeMealTags(r.mealTimes).length > 0 ? (
+              <p className="mt-2 flex flex-wrap gap-1.5">
+                {normalizeMealTags(r.mealTimes).map((tagName) => (
+                  <span
+                    key={tagName}
+                    className="rounded-full bg-terracotta-tint px-2.5 py-0.5 text-xs font-medium text-terracotta-strong"
+                  >
+                    {MEAL_TAG_LABEL[tagName]}
+                  </span>
+                ))}
+              </p>
+            ) : null}
             <p className="mt-2 text-xs text-ink-muted print:hidden">
               Tick them off as you gather — boxes print empty so you can check them by hand.
             </p>

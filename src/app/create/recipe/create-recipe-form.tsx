@@ -20,6 +20,7 @@ import {
 } from "@/lib/format-duration";
 import { formField, formFieldDense } from "@/lib/form-styles";
 import { RECIPE_LANGUAGES } from "@/lib/languages";
+import { MEAL_TAGS, MEAL_TAG_LABEL, type MealTag } from "@/lib/meal-tags";
 import {
   formatIngredientLine,
   ingredientListHelp,
@@ -62,6 +63,7 @@ export type RecipeFormInitial = {
   ingredientMeasureSystem: IngredientMeasureSystem;
   /** Empty string when the recipe doesn't say. */
   servings: string;
+  mealTimes: string[];
   ingredients: string;
   tagsInput: string;
   language: string;
@@ -96,6 +98,7 @@ export function CreateRecipeForm(props: {
   const [tagsInput, setTagsInput] = useState(props.initial?.tagsInput ?? "");
   const [language, setLanguage] = useState(props.initial?.language ?? "en");
   const [recipeServings, setRecipeServings] = useState(props.initial?.servings ?? "");
+  const [mealTimes, setMealTimes] = useState<string[]>(props.initial?.mealTimes ?? []);
   const [ingredientMeasureSystem, setIngredientMeasureSystem] = useState<IngredientMeasureSystem>(
     props.initial?.ingredientMeasureSystem ?? "metric",
   );
@@ -297,6 +300,7 @@ export function CreateRecipeForm(props: {
           ingredients: ing,
           ingredientMeasureSystem,
           servings: recipeServings.trim() ? Number(recipeServings) : null,
+          mealTimes,
           tags: tagLabels,
           steps: parsedSteps,
         })
@@ -311,6 +315,7 @@ export function CreateRecipeForm(props: {
           ingredients: ing,
           ingredientMeasureSystem,
           servings: recipeServings.trim() ? Number(recipeServings) : null,
+          mealTimes,
           tags: tagLabels,
           steps: parsedSteps,
         });
@@ -626,6 +631,40 @@ export function CreateRecipeForm(props: {
                 label="US volumetric"
                 hint="cups, tbsp, tsp"
               />
+            </div>
+          </fieldset>
+          <fieldset>
+            <legend className="text-sm font-medium text-ink">When is it for?</legend>
+            <p className="mt-1.5 text-xs text-ink-muted">
+              Optional, and you can pick more than one. Used by the meal planner to suggest the
+              right thing for the right sitting — tag a loaf as breakfast and it stops turning up
+              for dinner. Leave it blank and it stays eligible for any meal.
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {MEAL_TAGS.map((tagName: MealTag) => {
+                const on = mealTimes.includes(tagName);
+                return (
+                  <button
+                    key={tagName}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() =>
+                      setMealTimes((prev) =>
+                        prev.includes(tagName)
+                          ? prev.filter((t) => t !== tagName)
+                          : [...prev, tagName],
+                      )
+                    }
+                    className={`rounded-full border px-3 py-1.5 text-sm transition ${
+                      on
+                        ? "border-transparent bg-terracotta text-[#fff8f0]"
+                        : "border-sand-strong bg-surface text-ink-soft hover:border-terracotta hover:text-terracotta-strong"
+                    }`}
+                  >
+                    {MEAL_TAG_LABEL[tagName]}
+                  </button>
+                );
+              })}
             </div>
           </fieldset>
           <div>

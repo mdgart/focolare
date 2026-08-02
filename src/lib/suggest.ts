@@ -1,3 +1,5 @@
+import { isTaggedForMeal, suitsMealSlot } from "@/lib/meal-tags";
+import type { MealType } from "@/lib/meal-plan";
 import { ingredientCoveredBy } from "@/lib/normalize-ingredient";
 
 /**
@@ -29,9 +31,13 @@ export type SuggestionCandidate = {
   cookedWithinAWeek: boolean;
   /** Rating count, used only as a weak tiebreaker. */
   popularity: number;
+  /** Occasions the author tagged it for. Empty means untagged. */
+  mealTags: string[];
 };
 
 export type SlotContext = {
+  /** Which sitting is being filled, so breakfast things stay out of dinner. */
+  meal: MealType;
   timeAvailableMinutes: number | null;
   /** Normalized staple + on-hand names. */
   covered: Set<string>;
@@ -122,6 +128,11 @@ export function scoreCandidate(c: SuggestionCandidate, ctx: SlotContext): Scored
     score += 0.1;
     reasons.push("Your recipe");
   }
+  // A recipe its author put down as a dinner beats one merely not ruled out.
+  if (isTaggedForMeal(c.mealTags, ctx.meal)) {
+    score += 0.2;
+    reasons.push(`Made for ${ctx.meal}`);
+  }
   // Weak prior so a well-liked recipe edges out an unknown one, no more.
   score += Math.min(c.popularity, 20) / 20 * 0.1;
 
@@ -138,7 +149,10 @@ export function rankCandidates(
   limit = 12,
 ): ScoredSuggestion[] {
   return candidates
-    .filter((c) => fitsInTime(c.totalSeconds, ctx.timeAvailableMinutes))
+    .filter(
+      (c) =>
+        fitsInTime(c.totalSeconds, ctx.timeAvailableMinutes) && suitsMealSlot(c.mealTags, ctx.meal),
+    )
     .map((c) => scoreCandidate(c, ctx))
     .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
     .slice(0, limit);

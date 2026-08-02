@@ -71,6 +71,7 @@ export default async function EditRecipePage({ params }: { params: Promise<{ id:
       : null,
     ingredientMeasureSystem: bundle.recipe.ingredientMeasureSystem,
     servings: bundle.recipe.servings ? String(bundle.recipe.servings) : "",
+    mealTimes: bundle.recipe.mealTimes ?? [],
     ingredients: bundle.recipe.ingredients.map(formatIngredientLine).join("\n"),
     tagsInput: bundle.tags.map((t) => t.label).join(", "),
     language: bundle.recipe.language,

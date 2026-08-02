@@ -253,6 +253,11 @@ export const recipe = pgTable(
       .default("metric"),
     /** How many it makes. Null when the recipe never said — never guessed. */
     servings: integer("servings"),
+    /** Occasions this is for. Empty means untagged, which suits any meal. */
+    mealTimes: jsonb("meal_times")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     visibility: recipeVisibilityEnum("visibility").notNull().default("public"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     coverMediaId: uuid("cover_media_id").references(() => mediaAsset.id, { onDelete: "set null" }),

@@ -25,6 +25,7 @@ import { effectiveStepSeconds } from "@/lib/infer-duration";
 import { rescheduleMealReminderForSlot } from "@/lib/meal-reminders";
 import { MEAL_ORDER, type MealType } from "@/lib/meal-plan";
 import { getServerSession } from "@/lib/session";
+import { suitsMealSlot } from "@/lib/meal-tags";
 import {
   fitsInTime,
   rankCandidates,
@@ -114,6 +115,7 @@ async function gatherCandidates(userId: string): Promise<SuggestionCandidate[]> 
       channelTitle: channel.title,
       ownerUserId: channel.ownerUserId,
       coverUrl: mediaAsset.publicUrl,
+      mealTimes: recipe.mealTimes,
       popularity: sql<number>`cast((select count(*) from ${rating} where ${rating.recipeId} = ${recipe.id}) as int)`,
     })
     .from(recipe)
@@ -165,6 +167,7 @@ async function gatherCandidates(userId: string): Promise<SuggestionCandidate[]> 
       timesCooked: cooked?.times ?? 0,
       cookedWithinAWeek: cooked?.recent ?? false,
       popularity: r.popularity ?? 0,
+      mealTags: r.mealTimes ?? [],
     };
   });
 }
@@ -203,13 +206,15 @@ export async function suggestRecipesForSlotAction(input: {
   planId: string;
   slotId: string;
   limit?: number;
-  /** Set when the cook has asked to see the ones that don't fit their time. */
-  ignoreTimeLimit?: boolean;
+  /** Set when the cook has asked to see the ones that don't fit the slot. */
+  ignoreFilters?: boolean;
 }): Promise<
   | {
       suggestions: ScoredSuggestion[];
-      /** How many were held back for taking longer than the slot allows. */
+      /** Held back for taking longer than the slot allows. */
       overTime: number;
+      /** Held back for being tagged as a different sitting. */
+      wrongMeal: number;
       timeAvailableMinutes: number | null;
     }
   | { error: string }
@@ -227,7 +232,8 @@ export async function suggestRecipesForSlotAction(input: {
   const limit = slot.timeAvailableMinutes;
 
   const scoringContext = {
-    timeAvailableMinutes: input.ignoreTimeLimit ? null : limit,
+    meal: slot.meal as MealType,
+    timeAvailableMinutes: input.ignoreFilters ? null : limit,
     covered: ctx.covered,
     // Everything else already planned, so the same dish isn't proposed twice.
     recipeIdsInPlan: new Set(
@@ -235,16 +241,28 @@ export async function suggestRecipesForSlotAction(input: {
     ),
   };
 
-  const suggestions = rankCandidates(candidates, scoringContext, input.limit ?? 12);
+  const suggestions = rankCandidates(
+    input.ignoreFilters
+      ? candidates.map((c) => ({ ...c, mealTags: [] }))
+      : candidates,
+    scoringContext,
+    input.limit ?? 12,
+  );
 
   // Counted so the picker can offer them rather than looking empty — a cook with
   // a 15-minute slot and a shelf of sourdough deserves better than "no
-  // suggestions, try saving some recipes".
-  const overTime = input.ignoreTimeLimit
+  // suggestions, try saving some recipes". Counted separately so the offer can
+  // say which constraint did it.
+  const overTime = input.ignoreFilters
     ? 0
     : candidates.filter((c) => !fitsInTime(c.totalSeconds, limit)).length;
+  const wrongMeal = input.ignoreFilters
+    ? 0
+    : candidates.filter(
+        (c) => fitsInTime(c.totalSeconds, limit) && !suitsMealSlot(c.mealTags, slot.meal as MealType),
+      ).length;
 
-  return { suggestions, overTime, timeAvailableMinutes: limit };
+  return { suggestions, overTime, wrongMeal, timeAvailableMinutes: limit };
 }
 
 /**
@@ -280,6 +298,7 @@ export async function fillPlanAction(
     const [best] = rankCandidates(
       candidates,
       {
+        meal: slot.meal as MealType,
         timeAvailableMinutes: slot.timeAvailableMinutes,
         covered: ctx.covered,
         recipeIdsInPlan: used,
