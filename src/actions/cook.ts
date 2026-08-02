@@ -86,6 +86,73 @@ export async function startCookSessionAction(input: {
   return result;
 }
 
+export type ActiveCook = {
+  cookSessionId: string;
+  recipeTitle: string;
+  stepIndex: number;
+  stepCount: number;
+  /** When the running timer fires, or null when none is running or it's paused. */
+  timerFireAtMs: number | null;
+  timerPaused: boolean;
+};
+
+/**
+ * The cook session this user has on the go, if any.
+ *
+ * Read on every page so the header can say so. Distinct from
+ * `listOngoingPreparationsForUser`, which only counts ferments, cures and
+ * proofs — a weeknight dinner is just as much "in progress", and it's the one
+ * with a timer running.
+ */
+export async function getActiveCookForUser(): Promise<ActiveCook | null> {
+  const session = await getServerSession();
+  if (!session?.user?.id) return null;
+
+  const [cs] = await db
+    .select({
+      id: cookSession.id,
+      recipeId: cookSession.recipeId,
+      recipeTitle: recipe.title,
+      currentStepIndex: cookSession.currentStepIndex,
+    })
+    .from(cookSession)
+    .innerJoin(recipe, eq(cookSession.recipeId, recipe.id))
+    .where(and(eq(cookSession.userId, session.user.id), eq(cookSession.state, "active")))
+    .orderBy(desc(cookSession.updatedAt))
+    .limit(1);
+  if (!cs) return null;
+
+  const steps = await db
+    .select({ id: recipeStep.id })
+    .from(recipeStep)
+    .where(eq(recipeStep.recipeId, cs.recipeId));
+
+  const [timer] = await db
+    .select({
+      fireAt: scheduledStepEvent.fireAt,
+      pausedRemainingSeconds: scheduledStepEvent.pausedRemainingSeconds,
+    })
+    .from(scheduledStepEvent)
+    .where(
+      and(
+        eq(scheduledStepEvent.cookSessionId, cs.id),
+        eq(scheduledStepEvent.kind, "timer_end"),
+        eq(scheduledStepEvent.status, "pending"),
+      ),
+    )
+    .limit(1);
+
+  return {
+    cookSessionId: cs.id,
+    recipeTitle: cs.recipeTitle,
+    stepIndex: Math.min(Math.max(0, cs.currentStepIndex), Math.max(0, steps.length - 1)),
+    stepCount: steps.length,
+    timerFireAtMs:
+      timer && timer.pausedRemainingSeconds == null ? timer.fireAt.getTime() : null,
+    timerPaused: Boolean(timer && timer.pausedRemainingSeconds != null),
+  };
+}
+
 /** Skip any pending timer notification for this step (e.g. user advanced early). */
 export async function skipPendingTimersForCookStepAction(input: {
   cookSessionId: string;
