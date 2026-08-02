@@ -6,6 +6,7 @@ import { getMealPlanForOwner } from "@/actions/meal-plans";
 import { getServerSession } from "@/lib/session";
 import { GrocerySection } from "./grocery-section";
 import { PlanExport } from "./plan-export";
+import { PlanPrintSheet } from "./plan-print-sheet";
 import { PlannerClient } from "./planner-client";
 
 export const metadata = { title: "Meal plan · Focolare" };
@@ -28,7 +29,7 @@ export default async function PlanPage({ params }: { params: Promise<{ planId: s
   const origin = host ? `${proto}://${host}` : "";
 
   return (
-    <div className="print-sheet plan-print mx-auto min-w-0 max-w-5xl space-y-10">
+    <div className="print-sheet mx-auto min-w-0 max-w-5xl space-y-10">
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2 sm:pt-6">
         <Link
           href="/plan"
@@ -39,8 +40,13 @@ export default async function PlanPage({ params }: { params: Promise<{ planId: s
         <PlanExport planId={planId} planTitle={plan.title} />
       </div>
 
-      <PlannerClient plan={plan} origin={origin} />
-      <GrocerySection planId={planId} initialItems={groceries} />
+      {/* The screen version is all controls; paper gets its own render below. */}
+      <div className="space-y-10 print:hidden">
+        <PlannerClient plan={plan} origin={origin} />
+        <GrocerySection planId={planId} initialItems={groceries} />
+      </div>
+
+      <PlanPrintSheet plan={plan} groceries={groceries} />
     </div>
   );
 }
