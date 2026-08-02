@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { cookSession, mediaAsset, recipe, recipeStep, scheduledStepEvent } from "@/db/schema";
 import { getServerSession } from "@/lib/session";
 import { buildForwardTimeline, type StepInput } from "@/lib/cook-schedule";
+import { scaleIngredients } from "@/lib/scale-amount";
 import { CookSessionClient } from "./cook-session-client";
 
 export default async function CookSessionPage({ params }: { params: Promise<{ sessionId: string }> }) {
@@ -92,6 +93,10 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
         timeline={timelineJson}
         initialStepIndex={stepIdx}
         initialTimerArmedAtMs={initialTimerArmedAtMs}
+        // Scaled here rather than in the client so the numbers a cook reads
+        // mid-step are the same ones the session was started at.
+        ingredients={scaleIngredients(r.ingredients ?? [], (cs.scale || 100) / 100)}
+        scalePercent={cs.scale || 100}
       />
     </div>
   );

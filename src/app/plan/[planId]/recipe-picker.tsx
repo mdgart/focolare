@@ -47,6 +47,9 @@ export function RecipePicker({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  /** Held back for taking longer than this meal allows; 0 once they're shown. */
+  const [overTime, setOverTime] = useState(0);
+  const [timeLimit, setTimeLimit] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,11 +68,26 @@ export function RecipePicker({
           return;
         }
         setSuggestions(res.suggestions.map(toRow));
+        setOverTime(res.overTime);
+        setTimeLimit(res.timeAvailableMinutes);
       });
     return () => {
       cancelled = true;
     };
   }, [planId, slotId]);
+
+  function showOverTime() {
+    setLoading(true);
+    setOverTime(0);
+    void suggestRecipesForSlotAction({ planId, slotId, ignoreTimeLimit: true }).then((res) => {
+      setLoading(false);
+      if ("error" in res) {
+        setError(res.error);
+        return;
+      }
+      setSuggestions(res.suggestions.map(toRow));
+    });
+  }
 
   async function runSearch() {
     if (!query.trim()) return;
@@ -173,9 +191,11 @@ export function RecipePicker({
 
         {!loading && rows && rows.length === 0 ? (
           <p className="py-8 text-center text-sm text-ink-muted">
-            {tab === "suggested"
-              ? "No suggestions yet — try searching, or save a few recipes first."
-              : "Nothing matched that."}
+            {tab !== "suggested"
+              ? "Nothing matched that."
+              : overTime > 0
+                ? `Nothing in your recipes fits ${timeLimit} minutes.`
+                : "No suggestions yet — try searching, or save a few recipes first."}
           </p>
         ) : null}
 
@@ -212,6 +232,17 @@ export function RecipePicker({
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {!loading && tab === "suggested" && overTime > 0 ? (
+          <button
+            type="button"
+            onClick={showOverTime}
+            className="mt-4 w-full rounded-xl border border-dashed border-sand-strong px-4 py-3 text-sm text-ink-muted transition hover:border-terracotta hover:text-terracotta-strong"
+          >
+            {overTime} {overTime === 1 ? "recipe needs" : "recipes need"} longer than {timeLimit} min
+            — show {overTime === 1 ? "it" : "them"} anyway
+          </button>
         ) : null}
       </div>
     </div>

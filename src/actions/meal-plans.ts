@@ -14,6 +14,8 @@ import {
   recipe,
   user,
 } from "@/db/schema";
+import { groceryListAsText } from "@/actions/grocery";
+import { rebuildGroceryList } from "@/lib/grocery-sync";
 import {
   cancelMealRemindersForPlan,
   cancelMealRemindersForSlots,
@@ -22,11 +24,15 @@ import {
 } from "@/lib/meal-reminders";
 import {
   addDays,
+  enumerateDates,
   findOverlap,
   formatPlanDate,
   isMealTime,
   isPlanDate,
   MAX_PLAN_DAYS,
+  MEAL_LABEL,
+  MEAL_ORDER,
+  mealTimeOrDefault,
   planDayCount,
   type MealType,
 } from "@/lib/meal-plan";
@@ -212,6 +218,42 @@ export async function getMealPlanForOwner(planId: string): Promise<PlanDetail | 
   };
 }
 
+/**
+ * The whole plan as plain text: the week, then the shopping list.
+ *
+ * Plain text on purpose. It pastes into a message, a note or an email intact,
+ * which is what "send me the plan" nearly always means — and unlike a file it
+ * costs the reader nothing to open. Print is handled by the page's own print
+ * stylesheet, so the two never drift apart.
+ */
+export async function planAsText(planId: string): Promise<string> {
+  const plan = await getMealPlanForOwner(planId);
+  if (!plan) return "";
+
+  const lines = [
+    plan.title,
+    `${formatPlanDate(plan.startDate)} – ${formatPlanDate(plan.endDate)}`,
+  ];
+
+  for (const date of enumerateDates(plan.startDate, plan.endDate)) {
+    const slots = plan.slots
+      .filter((s) => s.date === date && s.recipeId)
+      .sort((a, b) => MEAL_ORDER.indexOf(a.meal) - MEAL_ORDER.indexOf(b.meal));
+    if (slots.length === 0) continue;
+
+    lines.push("", formatPlanDate(date));
+    for (const slot of slots) {
+      const at = mealTimeOrDefault(slot.meal, slot.mealTime);
+      lines.push(`  ${MEAL_LABEL[slot.meal]} ${at} — ${slot.recipeTitle}`);
+    }
+  }
+
+  const groceries = await groceryListAsText(planId);
+  if (groceries) lines.push("", "", groceries);
+
+  return lines.join("\n");
+}
+
 export async function updateMealPlanAction(input: {
   planId: string;
   title?: string;
@@ -244,13 +286,17 @@ export async function updateMealPlanAction(input: {
 
   // Shrinking the range orphans slots outside it; drop them and their reminders.
   const all = await db
-    .select({ id: mealSlot.id, date: mealSlot.date })
+    .select({ id: mealSlot.id, date: mealSlot.date, recipeId: mealSlot.recipeId })
     .from(mealSlot)
     .where(eq(mealSlot.planId, input.planId));
-  const orphaned = all.filter((s) => s.date < startDate || s.date > endDate).map((s) => s.id);
+  const orphaned = all.filter((s) => s.date < startDate || s.date > endDate);
   if (orphaned.length > 0) {
-    await cancelMealRemindersForSlots(orphaned);
-    await db.delete(mealSlot).where(inArray(mealSlot.id, orphaned));
+    const ids = orphaned.map((s) => s.id);
+    await cancelMealRemindersForSlots(ids);
+    await db.delete(mealSlot).where(inArray(mealSlot.id, ids));
+    if (orphaned.some((s) => s.recipeId)) {
+      await rebuildGroceryList(input.planId, guard.userId);
+    }
   }
 
   revalidatePath(`/plan/${input.planId}`);
@@ -402,6 +448,20 @@ export async function upsertMealSlotAction(input: {
     if (!access.allowed) return { error: "You can't add that recipe." };
   }
 
+  // Read before writing so the shopping list is only rebuilt when the recipe
+  // actually changed — editing a meal time shouldn't churn the list.
+  const [before] = await db
+    .select({ recipeId: mealSlot.recipeId })
+    .from(mealSlot)
+    .where(
+      and(
+        eq(mealSlot.planId, input.planId),
+        eq(mealSlot.date, input.date),
+        eq(mealSlot.meal, input.meal),
+      ),
+    )
+    .limit(1);
+
   const values = {
     planId: input.planId,
     date: input.date,
@@ -431,6 +491,10 @@ export async function upsertMealSlotAction(input: {
     plan: { userId: guard.userId, timezone: guard.plan.timezone },
   });
 
+  if ((before?.recipeId ?? null) !== values.recipeId) {
+    await rebuildGroceryList(input.planId, guard.userId);
+  }
+
   revalidatePath(`/plan/${input.planId}`);
   return { slotId: row!.id };
 }
@@ -452,9 +516,13 @@ export async function removeMealSlotAction(input: {
         eq(mealSlot.meal, input.meal),
       ),
     )
-    .returning({ id: mealSlot.id });
+    .returning({ id: mealSlot.id, recipeId: mealSlot.recipeId });
 
   await cancelMealRemindersForSlots(removed.map((r) => r.id));
+
+  if (removed.some((r) => r.recipeId)) {
+    await rebuildGroceryList(input.planId, guard.userId);
+  }
 
   revalidatePath(`/plan/${input.planId}`);
   return { ok: true };

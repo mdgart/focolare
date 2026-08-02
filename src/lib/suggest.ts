@@ -59,6 +59,32 @@ function timeFitScore(totalSeconds: number, availableMinutes: number | null): nu
   return 1 - (ratio - 1);
 }
 
+/**
+ * A time limit the cook typed in is a constraint, not a preference.
+ *
+ * Time fit used to be one signal among several, worth at most 0.35 of the score
+ * — so a saved recipe from someone you follow that you'd cooked before could
+ * out-score it and be offered for a 60-minute slot despite taking three days.
+ * Scoring can't express "no": only a filter can.
+ *
+ * Two things still get through. Recipes with no stated time, because that's
+ * unknowable rather than long, and dropping them would empty a young catalogue.
+ * And a little overshoot, because durations are often read out of prose and
+ * rounded up — refusing a 63-minute recipe for a 60-minute slot would be
+ * false precision.
+ *
+ * Note this is *elapsed* time, proving and chilling included: nothing in the
+ * data says which minutes are hands-on. A 17-hour loaf is genuinely not
+ * something you can start with an hour in hand and eat tonight.
+ */
+export const TIME_OVERSHOOT_ALLOWED = 1.1;
+
+export function fitsInTime(totalSeconds: number, availableMinutes: number | null): boolean {
+  if (!availableMinutes || availableMinutes <= 0) return true;
+  if (totalSeconds <= 0) return true;
+  return totalSeconds <= availableMinutes * 60 * TIME_OVERSHOOT_ALLOWED;
+}
+
 function pantryCoverage(ingredientNames: string[], covered: Set<string>): number {
   if (ingredientNames.length === 0) return 0;
   const hits = ingredientNames.filter((n) => ingredientCoveredBy(n, covered)).length;
@@ -112,6 +138,7 @@ export function rankCandidates(
   limit = 12,
 ): ScoredSuggestion[] {
   return candidates
+    .filter((c) => fitsInTime(c.totalSeconds, ctx.timeAvailableMinutes))
     .map((c) => scoreCandidate(c, ctx))
     .sort((a, b) => b.score - a.score || a.title.localeCompare(b.title))
     .slice(0, limit);

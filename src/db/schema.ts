@@ -251,6 +251,8 @@ export const recipe = pgTable(
     ingredientMeasureSystem: ingredientMeasureSystemEnum("ingredient_measure_system")
       .notNull()
       .default("metric"),
+    /** How many it makes. Null when the recipe never said — never guessed. */
+    servings: integer("servings"),
     visibility: recipeVisibilityEnum("visibility").notNull().default("public"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     coverMediaId: uuid("cover_media_id").references(() => mediaAsset.id, { onDelete: "set null" }),
