@@ -66,10 +66,17 @@ export function HomeHero({
             Tell Focolare when you want dinner on the table. It plans backwards, walks you through
             every step, and rings you when it&apos;s time to start.
           </p>
+          <p className="mt-3 max-w-xl text-base leading-relaxed text-ink-soft sm:text-lg">
+            Plan a whole week the same way — Focolare suggests what fits the time you have and
+            what&apos;s already in your cupboard, then turns the week into one shopping list.
+          </p>
 
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link href="/discover" className="btn btn-primary text-center">
               Explore recipes
+            </Link>
+            <Link href="/plan" className="btn btn-secondary text-center">
+              Plan your week
             </Link>
             {preparationCount > 0 ? (
               <Link href="/preparations" className="btn btn-secondary text-center">
@@ -90,6 +97,10 @@ export function HomeHero({
             <HeroFeature label="Reverse scheduling">
               <path d="M4 10a6 6 0 1 1 1.76 4.24" strokeLinecap="round" />
               <path d="M4 10H1.5M4 10l1.8 2.2" strokeLinecap="round" strokeLinejoin="round" />
+            </HeroFeature>
+            <HeroFeature label="Week planner">
+              <rect x="3" y="4.5" width="14" height="12.5" rx="2.5" />
+              <path d="M3 8.5h14M7 3v3M13 3v3" strokeLinecap="round" />
             </HeroFeature>
             <HeroFeature label="Creator channels">
               <circle cx="7" cy="8" r="2.75" />
@@ -131,6 +142,18 @@ export function HomeHero({
             <span className="text-xs leading-tight">
               <span className="block font-semibold text-ink">Ready at 7:30 PM</span>
               <span className="block text-ink-muted">Start the dough by 1:15 PM</span>
+            </span>
+          </div>
+          <div className="absolute bottom-6 right-4 flex items-center gap-3 rounded-2xl border border-sand bg-surface/95 px-4 py-3 shadow-lg backdrop-blur">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-terracotta-tint text-terracotta-strong">
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-5 w-5">
+                <rect x="3" y="4.5" width="14" height="12.5" rx="2.5" />
+                <path d="M3 8.5h14M7 3v3M13 3v3" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="text-xs leading-tight">
+              <span className="block font-semibold text-ink">This week: 6 meals</span>
+              <span className="block text-ink-muted">One shopping list, pantry subtracted</span>
             </span>
           </div>
         </div>
