@@ -1,6 +1,7 @@
 import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -116,7 +117,12 @@ export const cookSessionStateEnum = pgEnum("cook_session_state", [
 export const scheduledEventKindEnum = pgEnum("scheduled_event_kind", [
   "timer_end",
   "step_reminder",
+  /** Time to start cooking for a planned meal; belongs to a meal_slot, not a cook session. */
+  "meal_reminder",
 ]);
+
+/** Which sitting a planned recipe is for. */
+export const mealTypeEnum = pgEnum("meal_type", ["breakfast", "lunch", "dinner"]);
 
 export const scheduledEventStatusEnum = pgEnum("scheduled_event_status", [
   "pending",
@@ -458,11 +464,17 @@ export const scheduledStepEvent = pgTable(
   "scheduled_step_event",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    cookSessionId: uuid("cook_session_id")
-      .notNull()
-      .references(() => cookSession.id, { onDelete: "cascade" }),
+    /** Set for cook-timer events; null for reminders that belong to a meal slot. */
+    cookSessionId: uuid("cook_session_id").references(() => cookSession.id, {
+      onDelete: "cascade",
+    }),
+    /** Recipient for events with no cook session. Dispatch prefers this over the session join. */
+    userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    mealSlotId: uuid("meal_slot_id").references((): AnyPgColumn => mealSlot.id, {
+      onDelete: "cascade",
+    }),
     recipeStepId: uuid("recipe_step_id").references(() => recipeStep.id, { onDelete: "set null" }),
-    stepIndex: integer("step_index").notNull(),
+    stepIndex: integer("step_index"),
     kind: scheduledEventKindEnum("kind").notNull(),
     fireAt: timestamp("fire_at", { withTimezone: true }).notNull(),
     status: scheduledEventStatusEnum("status").notNull().default("pending"),
@@ -473,6 +485,7 @@ export const scheduledStepEvent = pgTable(
   (t) => [
     index("scheduled_step_event_fire_idx").on(t.status, t.fireAt),
     index("scheduled_step_event_session_idx").on(t.cookSessionId),
+    index("scheduled_step_event_meal_slot_idx").on(t.mealSlotId),
   ],
 );
 
@@ -489,6 +502,133 @@ export const pushSubscription = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index("push_subscription_user_idx").on(t.userId)],
+);
+
+/* ---------- Meal planner ---------- */
+
+export const mealPlan = pgTable(
+  "meal_plan",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default("Meal plan"),
+    /** 'YYYY-MM-DD'. Kept as strings end to end so no timezone can shift a day. */
+    startDate: date("start_date").notNull(),
+    /** Inclusive. Range length is capped in the action, not the schema. */
+    endDate: date("end_date").notNull(),
+    /** IANA zone from the planner's browser; meal times are wall clock in this zone. */
+    timezone: text("timezone").notNull().default("UTC"),
+    /** Null means private. A nanoid when shared; nulled again to revoke. */
+    shareSlug: text("share_slug").unique(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("meal_plan_user_idx").on(t.userId)],
+);
+
+export const mealSlot = pgTable(
+  "meal_slot",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => mealPlan.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    meal: mealTypeEnum("meal").notNull(),
+    timeAvailableMinutes: integer("time_available_minutes"),
+    /** 'HH:MM' wall clock in the plan's timezone; null uses the per-meal default. */
+    mealTime: text("meal_time"),
+    recipeId: uuid("recipe_id").references(() => recipe.id, { onDelete: "set null" }),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("meal_slot_plan_date_meal_uidx").on(t.planId, t.date, t.meal),
+    index("meal_slot_plan_idx").on(t.planId),
+  ],
+);
+
+/** Things a user always has in; subtracted from every grocery list they generate. */
+export const pantryStaple = pgTable(
+  "pantry_staple",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    normalizedName: text("normalized_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex("pantry_staple_user_name_uidx").on(t.userId, t.normalizedName)],
+);
+
+/** Ingredients already in the kitchen for this plan, optionally only on one day. */
+export const planOnHandItem = pgTable(
+  "plan_on_hand_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => mealPlan.id, { onDelete: "cascade" }),
+    /** Null means the item covers the whole plan. */
+    date: date("date"),
+    name: text("name").notNull(),
+    normalizedName: text("normalized_name").notNull(),
+  },
+  (t) => [index("plan_on_hand_plan_idx").on(t.planId)],
+);
+
+export const groceryItem = pgTable(
+  "grocery_item",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    planId: uuid("plan_id")
+      .notNull()
+      .references(() => mealPlan.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    normalizedName: text("normalized_name").notNull(),
+    /** Amounts as each recipe wrote them. Free text, never summed. */
+    detail: text("detail"),
+    sources: jsonb("sources")
+      .$type<{ recipeId: string; recipeTitle: string; amountText: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    checked: boolean("checked").notNull().default(false),
+    addedManually: boolean("added_manually").notNull().default(false),
+    /** Still a row, so a wrong pantry match can be pulled back into the list. */
+    coveredByPantry: boolean("covered_by_pantry").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("grocery_item_plan_idx").on(t.planId)],
+);
+
+/** A photo of something a user actually cooked, shown on the recipe. */
+export const madeIt = pgTable(
+  "made_it",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    recipeId: uuid("recipe_id")
+      .notNull()
+      .references(() => recipe.id, { onDelete: "cascade" }),
+    mediaId: uuid("media_id")
+      .notNull()
+      .references(() => mediaAsset.id, { onDelete: "cascade" }),
+    cookSessionId: uuid("cook_session_id").references(() => cookSession.id, {
+      onDelete: "set null",
+    }),
+    moderationStatus: moderationStatusEnum("moderation_status").notNull().default("approved"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("made_it_recipe_idx").on(t.recipeId, t.moderationStatus),
+    index("made_it_user_idx").on(t.userId),
+  ],
 );
 
 /* ---------- Relations (optional, for joins) ---------- */

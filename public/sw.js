@@ -23,6 +23,23 @@ self.addEventListener("push", (event) => {
   const payload = readPayload(event);
   if (!payload) return;
 
+  // Meal reminders carry their own copy and destination — there is no cook
+  // session or step to describe.
+  if (payload.type === "meal_reminder") {
+    event.waitUntil(
+      self.registration.showNotification(payload.title || "Time to start cooking", {
+        body: payload.body || "",
+        icon: "/logo.png",
+        badge: "/logo.png",
+        tag: payload.idempotencyKey || payload.mealSlotId || "focolare-meal",
+        renotify: true,
+        requireInteraction: true,
+        data: { url: payload.url || "/plan" },
+      }),
+    );
+    return;
+  }
+
   const stepNumber = typeof payload.stepIndex === "number" ? payload.stepIndex + 1 : null;
   const title = payload.recipeTitle ? `${payload.recipeTitle} — timer` : "Focolare";
   const body = payload.stepTitle
@@ -43,7 +60,7 @@ self.addEventListener("push", (event) => {
       renotify: true,
       requireInteraction: true,
       data: {
-        url: payload.cookSessionId ? `/cook/${payload.cookSessionId}` : "/preparations",
+        url: payload.url ?? (payload.cookSessionId ? `/cook/${payload.cookSessionId}` : "/preparations"),
       },
     }),
   );

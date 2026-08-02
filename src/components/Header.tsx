@@ -41,6 +41,14 @@ export async function Header() {
             <Link href="/discover" className="font-medium text-ink-soft transition hover:text-terracotta-strong">
               Discover
             </Link>
+            {session?.user ? (
+              <Link
+                href="/plan"
+                className="font-medium text-ink-soft transition hover:text-terracotta-strong"
+              >
+                Planner
+              </Link>
+            ) : null}
             <Link
               href="/create/recipe"
               className="font-medium text-ink-soft transition hover:text-terracotta-strong"
@@ -87,6 +95,7 @@ export async function Header() {
           aria-label="Main"
         >
           <HeaderChip href="/discover">Discover</HeaderChip>
+          {session?.user ? <HeaderChip href="/plan">Planner</HeaderChip> : null}
           <HeaderChip href="/create/recipe">Create</HeaderChip>
           {showAdmin ? <HeaderChip href="/admin/taxonomy">Admin</HeaderChip> : null}
         </nav>
