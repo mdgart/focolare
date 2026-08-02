@@ -36,7 +36,8 @@ export function CookSessionClient(props: {
   recipeTitle: string;
   timeline: TimelineJson[];
   initialStepIndex?: number;
-  initialTimerArmedAtMs?: number | null;
+  /** Every pending timer for the session, by the step it belongs to. */
+  initialArmed?: { stepIndex: number; atMs: number }[];
   /** Ingredients at this session's scale, for glancing at mid-cook. */
   ingredients?: { amount?: string; unit?: string; name: string }[];
   /** Percent, so 200 means the cook doubled it when they started. */
@@ -44,7 +45,19 @@ export function CookSessionClient(props: {
 }) {
   const [idx, setIdx] = useState(() => Math.max(0, props.initialStepIndex ?? 0));
   const [now, setNow] = useState(() => Date.now());
-  const [timerArmedAt, setTimerArmedAt] = useState<number | null>(() => props.initialTimerArmedAtMs ?? null);
+  /**
+   * Running timers, by the step each belongs to.
+   *
+   * A list rather than one value, because steps are navigable now — back, and
+   * straight from the all-steps list — and timers are keyed per step on the
+   * server, so a cook can genuinely have two going. Holding one would have
+   * meant forgetting a live timer on screen while it still fired a
+   * notification; cancelling the other on arming would have been worse still,
+   * silently killing a bake someone was relying on.
+   */
+  const [armed, setArmed] = useState<{ stepIndex: number; atMs: number }[]>(
+    () => props.initialArmed ?? [],
+  );
   const [pendingArm, setPendingArm] = useState(false);
   const router = useRouter();
 
@@ -89,15 +102,16 @@ export function CookSessionClient(props: {
   const timelineLenRef = useRef(props.timeline.length);
   timelineLenRef.current = props.timeline.length;
 
+  /** Null unless a timer is running for the step being looked at. */
+  const timerArmedAt = armed.find((a) => a.stepIndex === idx)?.atMs ?? null;
+
   const timerArmedRef = useRef(false);
   timerArmedRef.current = timerArmedAt != null;
 
   const stepDurationRef = useRef(0);
   stepDurationRef.current = step?.durationSeconds ?? 0;
 
-  useEffect(() => {
-    setTimerArmedAt(null);
-  }, [idx]);
+
 
   async function onDone() {
     const res = await completeCookSessionAction(props.cookSessionId);
@@ -126,7 +140,7 @@ export function CookSessionClient(props: {
         setVoiceHint(res.error);
         return;
       }
-      setTimerArmedAt(Date.now());
+      setArmed((all) => [...all.filter((a) => a.stepIndex !== idx), { stepIndex: idx, atMs: Date.now() }]);
     } finally {
       setPendingArm(false);
     }
@@ -139,6 +153,8 @@ export function CookSessionClient(props: {
     setVoiceHint(null);
     const cur = idx;
     await skipPendingTimersForCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: cur });
+    // Its server-side event was just skipped, so drop only this step's.
+    setArmed((all) => all.filter((a) => a.stepIndex !== cur));
     const nextIdx = Math.min(cur + 1, props.timeline.length - 1);
     setIdx(nextIdx);
     await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: nextIdx });
@@ -146,6 +162,26 @@ export function CookSessionClient(props: {
 
   const goNextRef = useRef(goNext);
   goNextRef.current = goNext;
+
+  /**
+   * Move to any step without touching the timer.
+   *
+   * Going back is usually "what did that say again?" while something is on the
+   * hob — cancelling the timer for that would be the opposite of helpful. Only
+   * `goNext` retires a timer, because finishing a step is what ends it. The
+   * index is still persisted, so a reload lands on the step you're actually
+   * looking at.
+   */
+  const goToStep = useCallback(
+    async (to: number) => {
+      const clamped = Math.min(Math.max(0, to), props.timeline.length - 1);
+      if (clamped === idx) return;
+      setVoiceHint(null);
+      setIdx(clamped);
+      await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: clamped });
+    },
+    [idx, props.cookSessionId, props.timeline.length],
+  );
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 500);
@@ -263,6 +299,31 @@ export function CookSessionClient(props: {
   return (
     <div className="flex min-h-0 flex-col justify-between rounded-2xl border border-stone-200/90 bg-white p-6 shadow-md ring-1 ring-stone-100 sm:min-h-[50vh] sm:p-8">
       <div>
+        {/* Directly under the step counter, at the size of something you're
+            meant to use: reading ahead and checking amounts is most of what a
+            cook does with a spare five minutes, and both were previously small
+            grey pills buried above the Next button. */}
+        <div className="mb-4 flex gap-2">
+          <PeekButton
+            active={peek === "steps"}
+            onClick={() => setPeek(peek === "steps" ? "none" : "steps")}
+            label="All steps"
+            detail={`${props.timeline.length}`}
+          />
+          {props.ingredients && props.ingredients.length > 0 ? (
+            <PeekButton
+              active={peek === "ingredients"}
+              onClick={() => setPeek(peek === "ingredients" ? "none" : "ingredients")}
+              label="Ingredients"
+              detail={
+                props.scalePercent && props.scalePercent !== 100
+                  ? `×${Math.round(props.scalePercent) / 100}`
+                  : `${props.ingredients.length}`
+              }
+            />
+          ) : null}
+        </div>
+
         <div className="flex items-center justify-between gap-3">
           <p className="text-xs font-semibold uppercase tracking-widest text-amber-900/60">
             Step {idx + 1} / {props.timeline.length}
@@ -386,44 +447,12 @@ export function CookSessionClient(props: {
         </div>
       ) : null}
 
-      {/* Reading ahead while something simmers is most of what a cook does with
-          a spare five minutes, and the timer is server-side, so this can't
-          disturb it. */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setPeek(peek === "steps" ? "none" : "steps")}
-          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-            peek === "steps"
-              ? "border-amber-300 bg-amber-50 text-amber-900"
-              : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
-          }`}
-        >
-          All steps
-        </button>
-        {props.ingredients && props.ingredients.length > 0 ? (
-          <button
-            type="button"
-            onClick={() => setPeek(peek === "ingredients" ? "none" : "ingredients")}
-            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-              peek === "ingredients"
-                ? "border-amber-300 bg-amber-50 text-amber-900"
-                : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
-            }`}
-          >
-            Ingredients
-            {props.scalePercent && props.scalePercent !== 100
-              ? ` (×${Math.round(props.scalePercent) / 100})`
-              : ""}
-          </button>
-        ) : null}
-        {timerArmedAt != null ? (
-          <span className="text-xs text-stone-500">
-            Timer runs even if you close this — you&apos;ll get a notification, and this page comes
-            back where you left it.
-          </span>
-        ) : null}
-      </div>
+      {armed.length > 0 ? (
+        <p className="mb-3 text-xs text-stone-500">
+          Timer runs even if you close this — you&apos;ll get a notification, and this page comes
+          back where you left it.
+        </p>
+      ) : null}
 
       {peek === "steps" ? (
         <ol className="mb-4 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-stone-200 bg-stone-50/70 p-3">
@@ -431,13 +460,21 @@ export function CookSessionClient(props: {
             <li key={i}>
               <button
                 type="button"
-                onClick={() => setIdx(i)}
+                onClick={() => void goToStep(i)}
                 className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-white ${
                   i === idx ? "font-semibold text-stone-900" : "text-stone-600"
                 }`}
               >
                 <span className="w-5 shrink-0 tabular-nums text-xs text-stone-400">{i + 1}</span>
                 <span className="min-w-0 flex-1">{s.title}</span>
+                {armed.some((a) => a.stepIndex === i) ? (
+                  <span
+                    className="shrink-0 rounded-full bg-amber-100 px-1.5 py-0.5 text-[0.6rem] font-semibold uppercase tracking-wide text-amber-900"
+                    title="A timer is running on this step"
+                  >
+                    timing
+                  </span>
+                ) : null}
                 {s.durationSeconds > 0 ? (
                   <span className="shrink-0 text-xs tabular-nums text-stone-400">
                     {Math.round(s.durationSeconds / 60)}m
@@ -488,7 +525,16 @@ export function CookSessionClient(props: {
         </div>
       ) : null}
 
-      <div className="flex flex-col gap-2 sm:flex-row">
+      <div className="flex gap-2">
+        <button
+          type="button"
+          disabled={idx === 0}
+          onClick={() => void goToStep(idx - 1)}
+          className="shrink-0 rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 disabled:opacity-40 disabled:hover:bg-white"
+          aria-label="Previous step"
+        >
+          ← Back
+        </button>
         {canNext ? (
           <button
             type="button"
@@ -508,5 +554,35 @@ export function CookSessionClient(props: {
         )}
       </div>
     </div>
+  );
+}
+
+/** Equal-width so the pair reads as one control, and big enough for wet hands. */
+function PeekButton(props: {
+  active: boolean;
+  onClick: () => void;
+  label: string;
+  detail: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={props.onClick}
+      aria-pressed={props.active}
+      className={`flex flex-1 items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold shadow-sm transition ${
+        props.active
+          ? "border-amber-400 bg-amber-50 text-amber-950"
+          : "border-stone-300 bg-white text-stone-700 hover:border-amber-300 hover:text-amber-900"
+      }`}
+    >
+      {props.label}
+      <span
+        className={`rounded-full px-1.5 py-0.5 text-[0.65rem] font-medium tabular-nums ${
+          props.active ? "bg-amber-200/70 text-amber-950" : "bg-stone-100 text-stone-500"
+        }`}
+      >
+        {props.detail}
+      </span>
+    </button>
   );
 }

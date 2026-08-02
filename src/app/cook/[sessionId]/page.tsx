@@ -62,25 +62,27 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
   }));
 
   const stepIdx = Math.min(Math.max(0, cs.currentStepIndex), Math.max(0, steps.length - 1));
-  const currentDbStep = steps[stepIdx];
 
-  const [pendingTimer] = await db
-    .select({ fireAt: scheduledStepEvent.fireAt })
+  // Every pending timer, not just one on the step being viewed. Steps are
+  // navigable, so a cook can be reading step 2 while step 3 simmers — and
+  // timers are keyed per step server-side, so more than one can be live.
+  const pendingTimers = await db
+    .select({ fireAt: scheduledStepEvent.fireAt, stepIndex: scheduledStepEvent.stepIndex })
     .from(scheduledStepEvent)
     .where(
       and(
         eq(scheduledStepEvent.cookSessionId, cs.id),
-        eq(scheduledStepEvent.stepIndex, stepIdx),
+        eq(scheduledStepEvent.kind, "timer_end"),
         eq(scheduledStepEvent.status, "pending"),
       ),
-    )
-    .limit(1);
+    );
 
-  const stepDuration = currentDbStep?.durationSeconds ?? 0;
-  const initialTimerArmedAtMs =
-    pendingTimer && stepDuration > 0
-      ? pendingTimer.fireAt.getTime() - stepDuration * 1000
-      : null;
+  const initialArmed = pendingTimers.flatMap((timer) => {
+    if (timer.stepIndex == null) return [];
+    const duration = steps[timer.stepIndex]?.durationSeconds ?? 0;
+    if (duration <= 0) return [];
+    return [{ stepIndex: timer.stepIndex, atMs: timer.fireAt.getTime() - duration * 1000 }];
+  });
 
   return (
     <div className="space-y-4">
@@ -92,7 +94,7 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
         recipeTitle={r.title}
         timeline={timelineJson}
         initialStepIndex={stepIdx}
-        initialTimerArmedAtMs={initialTimerArmedAtMs}
+        initialArmed={initialArmed}
         // Scaled here rather than in the client so the numbers a cook reads
         // mid-step are the same ones the session was started at.
         ingredients={scaleIngredients(r.ingredients ?? [], (cs.scale || 100) / 100)}
