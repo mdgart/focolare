@@ -70,6 +70,8 @@ export function CookSessionClient(props: {
     [props.cookSessionId, router],
   );
 
+  /** Set when Next would stop a running timer and we've asked first. */
+  const [confirmNext, setConfirmNext] = useState(false);
   /** "steps" while a timer runs is the point: read ahead and get things ready. */
   const [peek, setPeek] = useState<"none" | "steps" | "ingredients">("none");
   /** On by default — the whole point of a cook screen is that you can glance at it. */
@@ -155,6 +157,7 @@ export function CookSessionClient(props: {
     await skipPendingTimersForCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: cur });
     // Its server-side event was just skipped, so drop only this step's.
     setArmed((all) => all.filter((a) => a.stepIndex !== cur));
+    setConfirmNext(false);
     const nextIdx = Math.min(cur + 1, props.timeline.length - 1);
     setIdx(nextIdx);
     await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: nextIdx });
@@ -162,6 +165,28 @@ export function CookSessionClient(props: {
 
   const goNextRef = useRef(goNext);
   goNextRef.current = goNext;
+
+  /**
+   * Next means "this step is done", which retires its timer.
+   *
+   * That's right when it's what you meant and quietly destructive when it
+   * isn't — a bake you were relying on, gone because you wanted to read the
+   * next line. So when a timer is running on this step, ask first, and point at
+   * the way to read ahead that leaves it alone.
+   */
+  const requestNext = useCallback(async () => {
+    if (timerArmedAt != null && !confirmNext) {
+      setConfirmNext(true);
+      // Said out loud too: the whole point of voice is that nobody is looking.
+      setVoiceHint("That would stop this step's timer — say next again to confirm.");
+      return;
+    }
+    setConfirmNext(false);
+    await goNext();
+  }, [timerArmedAt, confirmNext, goNext]);
+
+  const requestNextRef = useRef(requestNext);
+  requestNextRef.current = requestNext;
 
   /**
    * Move to any step without touching the timer.
@@ -177,6 +202,7 @@ export function CookSessionClient(props: {
       const clamped = Math.min(Math.max(0, to), props.timeline.length - 1);
       if (clamped === idx) return;
       setVoiceHint(null);
+      setConfirmNext(false);
       setIdx(clamped);
       await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: clamped });
     },
@@ -233,7 +259,7 @@ export function CookSessionClient(props: {
           return;
         }
         if (transcriptMeansNextStep(text) && canNextRef.current && tryVoiceAction()) {
-          void goNextRef.current();
+          void requestNextRef.current();
           return;
         }
         if (transcriptMeansFinish(text) && isLastStepRef.current && tryVoiceAction()) {
@@ -525,6 +551,44 @@ export function CookSessionClient(props: {
         </div>
       ) : null}
 
+      {confirmNext ? (
+        <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 p-3">
+          <p className="text-sm font-semibold text-amber-950">
+            Moving on stops the timer on this step.
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-amber-900">
+            To read ahead while it keeps running, open <strong>All steps</strong> instead — looking
+            around in there leaves every timer alone.
+          </p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void requestNext()}
+              className="rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-amber-700"
+            >
+              Stop timer & continue
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmNext(false);
+                setPeek("steps");
+              }}
+              className="rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs font-medium text-amber-900 transition hover:bg-amber-50"
+            >
+              Open all steps
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmNext(false)}
+              className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="flex gap-2">
         <button
           type="button"
@@ -539,7 +603,7 @@ export function CookSessionClient(props: {
           <button
             type="button"
             className="flex-1 rounded-xl border border-stone-300 bg-stone-100 py-3 text-sm font-semibold text-stone-800 shadow-sm transition hover:bg-stone-200"
-            onClick={() => void goNext()}
+            onClick={() => void requestNext()}
           >
             Next step
           </button>
