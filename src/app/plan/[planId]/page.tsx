@@ -5,6 +5,7 @@ import { listGroceryItems } from "@/actions/grocery";
 import { getMealPlanForOwner } from "@/actions/meal-plans";
 import { getServerSession } from "@/lib/session";
 import { GrocerySection } from "./grocery-section";
+import { PlanExport } from "./plan-export";
 import { PlannerClient } from "./planner-client";
 
 export const metadata = { title: "Meal plan · Focolare" };
@@ -27,11 +28,15 @@ export default async function PlanPage({ params }: { params: Promise<{ planId: s
   const origin = host ? `${proto}://${host}` : "";
 
   return (
-    <div className="mx-auto min-w-0 max-w-5xl space-y-10">
-      <div className="pt-2 sm:pt-6">
-        <Link href="/plan" className="text-sm font-medium text-terracotta hover:text-terracotta-strong">
+    <div className="print-sheet plan-print mx-auto min-w-0 max-w-5xl space-y-10">
+      <div className="flex flex-wrap items-center justify-between gap-3 pt-2 sm:pt-6">
+        <Link
+          href="/plan"
+          className="text-sm font-medium text-terracotta hover:text-terracotta-strong print:hidden"
+        >
           ← All plans
         </Link>
+        <PlanExport planId={planId} planTitle={plan.title} />
       </div>
 
       <PlannerClient plan={plan} origin={origin} />

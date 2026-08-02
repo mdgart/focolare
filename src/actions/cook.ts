@@ -176,6 +176,39 @@ export async function armStepTimerAction(input: {
   return { ok: true as const };
 }
 
+/**
+ * How much of the recipe this session is making, as a percentage.
+ *
+ * Kept on the session rather than the recipe: doubling a batch tonight is a fact
+ * about tonight, not an edit to someone's recipe. Step timings are left alone —
+ * a bigger tray takes longer in ways no ratio predicts, and quietly stretching
+ * the timers would move the reminders too.
+ */
+export async function setCookSessionScaleAction(input: {
+  cookSessionId: string;
+  scalePercent: number;
+}): Promise<{ ok: true } | { error: string }> {
+  const session = await getServerSession();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const scale = Math.round(input.scalePercent);
+  if (!Number.isFinite(scale) || scale < 10 || scale > 1000) return { error: "Invalid scale" };
+
+  const [cs] = await db
+    .select({ id: cookSession.id })
+    .from(cookSession)
+    .where(and(eq(cookSession.id, input.cookSessionId), eq(cookSession.userId, session.user.id)))
+    .limit(1);
+  if (!cs) return { error: "Not found" };
+
+  await db
+    .update(cookSession)
+    .set({ scale, updatedAt: new Date() })
+    .where(eq(cookSession.id, input.cookSessionId));
+
+  return { ok: true as const };
+}
+
 export async function advanceCookStepAction(input: {
   cookSessionId: string;
   stepIndex: number;

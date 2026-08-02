@@ -16,6 +16,20 @@ import { nanoid } from "nanoid";
 
 const channelAvatarMedia = alias(mediaAsset, "channel_avatar_media");
 
+/**
+ * Servings as a whole number, or null.
+ *
+ * Null rather than a default, because quantities get scaled off this: a recipe
+ * wrongly recorded as serving 4 silently halves everyone's shopping when they
+ * ask for 2. "Doesn't say" is a real answer and the UI handles it.
+ */
+function normalizeServings(value: number | null | undefined): number | null {
+  if (value == null) return null;
+  const whole = Math.floor(value);
+  if (!Number.isFinite(whole) || whole < 1 || whole > 100) return null;
+  return whole;
+}
+
 /** Category id plus all active descendants (for parent filters). Unknown ids fall back to exact match. */
 async function activeCategoryIdsForTaxonomyFilter(taxId: string): Promise<string[]> {
   const rows = await db
@@ -229,6 +243,8 @@ export async function createRecipeAction(form: {
   /** false keeps the recipe as a draft (publishedAt stays null). Defaults to publishing. */
   publish?: boolean;
   ingredientMeasureSystem: "metric" | "us";
+  /** How many it makes. Null or omitted when the recipe doesn't say. */
+  servings?: number | null;
   ingredients: { name: string; amount?: string; unit?: string }[];
   tags: string[];
   steps: {
@@ -304,6 +320,7 @@ export async function createRecipeAction(form: {
           description: form.description.trim() || null,
           ingredients: form.ingredients,
           ingredientMeasureSystem,
+          servings: normalizeServings(form.servings),
           visibility: form.visibility,
           publishedAt: form.publish === false ? null : new Date(),
           coverMediaId: form.coverMediaId ?? null,
@@ -345,6 +362,7 @@ export async function updateRecipeAction(
     /** true publishes a draft; false returns it to draft. Omit to leave the state alone. */
     publish?: boolean;
     ingredientMeasureSystem: "metric" | "us";
+    servings?: number | null;
     ingredients: { name: string; amount?: string; unit?: string }[];
     tags: string[];
     steps: {
@@ -431,6 +449,7 @@ export async function updateRecipeAction(
       description: form.description.trim() || null,
       ingredients: form.ingredients,
       ingredientMeasureSystem,
+      servings: normalizeServings(form.servings),
       visibility: form.visibility,
       coverMediaId: form.coverMediaId ?? null,
       language: normalizeLanguage(form.language),

@@ -60,6 +60,8 @@ export type RecipeFormInitial = {
   taxonomyId: string;
   coverImage: UploadedImage | null;
   ingredientMeasureSystem: IngredientMeasureSystem;
+  /** Empty string when the recipe doesn't say. */
+  servings: string;
   ingredients: string;
   tagsInput: string;
   language: string;
@@ -93,6 +95,7 @@ export function CreateRecipeForm(props: {
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [tagsInput, setTagsInput] = useState(props.initial?.tagsInput ?? "");
   const [language, setLanguage] = useState(props.initial?.language ?? "en");
+  const [recipeServings, setRecipeServings] = useState(props.initial?.servings ?? "");
   const [ingredientMeasureSystem, setIngredientMeasureSystem] = useState<IngredientMeasureSystem>(
     props.initial?.ingredientMeasureSystem ?? "metric",
   );
@@ -293,6 +296,7 @@ export function CreateRecipeForm(props: {
           publish,
           ingredients: ing,
           ingredientMeasureSystem,
+          servings: recipeServings.trim() ? Number(recipeServings) : null,
           tags: tagLabels,
           steps: parsedSteps,
         })
@@ -306,6 +310,7 @@ export function CreateRecipeForm(props: {
           publish,
           ingredients: ing,
           ingredientMeasureSystem,
+          servings: recipeServings.trim() ? Number(recipeServings) : null,
           tags: tagLabels,
           steps: parsedSteps,
         });
@@ -623,6 +628,23 @@ export function CreateRecipeForm(props: {
               />
             </div>
           </fieldset>
+          <div>
+            <label htmlFor="recipe-servings" className="text-sm font-medium text-ink">
+              How many does it serve?
+            </label>
+            <input
+              id="recipe-servings"
+              inputMode="numeric"
+              value={recipeServings}
+              onChange={(e) => setRecipeServings(e.target.value.replace(/[^\d]/g, ""))}
+              placeholder="Optional — e.g. 4"
+              className={`mt-2 ${formFieldDense} max-w-40`}
+            />
+            <p className="mt-1.5 text-xs text-ink-muted">
+              Lets readers scale the ingredients up or down. Leave it blank if the recipe doesn&apos;t
+              say — a guess would scale everyone&apos;s shopping wrong.
+            </p>
+          </div>
           <div>
             <label htmlFor="recipe-ingredients" className="text-sm font-medium text-ink">
               One ingredient per line

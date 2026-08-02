@@ -20,11 +20,17 @@ import {
   user,
 } from "@/db/schema";
 import { buildCoveredSet } from "@/lib/grocery";
+import { rebuildGroceryList } from "@/lib/grocery-sync";
 import { effectiveStepSeconds } from "@/lib/infer-duration";
 import { rescheduleMealReminderForSlot } from "@/lib/meal-reminders";
 import { MEAL_ORDER, type MealType } from "@/lib/meal-plan";
 import { getServerSession } from "@/lib/session";
-import { rankCandidates, type ScoredSuggestion, type SuggestionCandidate } from "@/lib/suggest";
+import {
+  fitsInTime,
+  rankCandidates,
+  type ScoredSuggestion,
+  type SuggestionCandidate,
+} from "@/lib/suggest";
 
 const CANDIDATE_CAP = 60;
 
@@ -197,7 +203,17 @@ export async function suggestRecipesForSlotAction(input: {
   planId: string;
   slotId: string;
   limit?: number;
-}): Promise<{ suggestions: ScoredSuggestion[] } | { error: string }> {
+  /** Set when the cook has asked to see the ones that don't fit their time. */
+  ignoreTimeLimit?: boolean;
+}): Promise<
+  | {
+      suggestions: ScoredSuggestion[];
+      /** How many were held back for taking longer than the slot allows. */
+      overTime: number;
+      timeAvailableMinutes: number | null;
+    }
+  | { error: string }
+> {
   const session = await getServerSession();
   if (!session?.user?.id) return { error: "Sign in to plan meals." };
 
@@ -208,20 +224,27 @@ export async function suggestRecipesForSlotAction(input: {
   if (!slot) return { error: "That meal isn't in this plan." };
 
   const candidates = await gatherCandidates(session.user.id);
-  const suggestions = rankCandidates(
-    candidates,
-    {
-      timeAvailableMinutes: slot.timeAvailableMinutes,
-      covered: ctx.covered,
-      // Everything else already planned, so the same dish isn't proposed twice.
-      recipeIdsInPlan: new Set(
-        ctx.slots.filter((s) => s.id !== slot.id && s.recipeId).map((s) => s.recipeId!),
-      ),
-    },
-    input.limit ?? 12,
-  );
+  const limit = slot.timeAvailableMinutes;
 
-  return { suggestions };
+  const scoringContext = {
+    timeAvailableMinutes: input.ignoreTimeLimit ? null : limit,
+    covered: ctx.covered,
+    // Everything else already planned, so the same dish isn't proposed twice.
+    recipeIdsInPlan: new Set(
+      ctx.slots.filter((s) => s.id !== slot.id && s.recipeId).map((s) => s.recipeId!),
+    ),
+  };
+
+  const suggestions = rankCandidates(candidates, scoringContext, input.limit ?? 12);
+
+  // Counted so the picker can offer them rather than looking empty — a cook with
+  // a 15-minute slot and a shelf of sourdough deserves better than "no
+  // suggestions, try saving some recipes".
+  const overTime = input.ignoreTimeLimit
+    ? 0
+    : candidates.filter((c) => !fitsInTime(c.totalSeconds, limit)).length;
+
+  return { suggestions, overTime, timeAvailableMinutes: limit };
 }
 
 /**
@@ -281,6 +304,8 @@ export async function fillPlanAction(
     used.add(best.recipeId);
     filled += 1;
   }
+
+  if (filled > 0) await rebuildGroceryList(planId, session.user.id);
 
   revalidatePath(`/plan/${planId}`);
   return { filled };

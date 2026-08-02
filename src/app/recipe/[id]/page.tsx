@@ -10,6 +10,7 @@ import { canViewRecipe } from "@/lib/recipe-access";
 import { humanDurationSeconds } from "@/lib/format-duration";
 import { effectiveStepSeconds, totalRecipeSeconds } from "@/lib/infer-duration";
 import { ingredientSystemTitle } from "@/lib/ingredient-measure";
+import { IngredientPanel } from "./ingredient-panel";
 import { RecipePrintButton } from "@/components/RecipePrintButton";
 import { CreatorProfileBar } from "@/components/CreatorProfileBar";
 import { SaveRecipeButton } from "@/components/SaveRecipeButton";
@@ -86,7 +87,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
   const recipePageUrl = host ? `${proto}://${host}/recipe/${id}` : "";
 
   return (
-    <article className="recipe-print-root mx-auto max-w-6xl print:max-w-none">
+    <article className="print-sheet mx-auto max-w-6xl print:max-w-none">
       <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12 print:block">
         {/* ---- Main column ---- */}
         <div className="min-w-0 space-y-10">
@@ -260,35 +261,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               Tick them off as you gather — boxes print empty so you can check them by hand.
             </p>
 
-            <div className="recipe-block mt-5 overflow-hidden rounded-2xl border border-sand bg-surface">
-              {(r.ingredients ?? []).length === 0 ? (
-                <div className="p-6 text-center text-ink-muted">
-                  <p>No ingredients listed for this recipe.</p>
-                </div>
-              ) : (
-                <ul className="divide-y divide-sand">
-                  {(r.ingredients ?? []).map((ing, i) => (
-                    <li key={i} className="transition hover:bg-sunken/40 print:hover:bg-transparent">
-                      <label className="flex cursor-pointer items-start gap-3.5 px-5 py-3.5 print:cursor-default">
-                        <input
-                          type="checkbox"
-                          className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer rounded accent-terracotta print:rounded-sm"
-                          aria-label={`Ingredient: ${ing.name}`}
-                        />
-                        <span className="text-ink">
-                          {ing.amount ? <span className="font-semibold tabular-nums">{ing.amount}</span> : null}
-                          {ing.unit ? <span className="text-ink-muted"> {ing.unit}</span> : null}
-                          {(ing.amount || ing.unit) && ing.name ? (
-                            <span data-translate className="ml-1.5">{ing.name}</span>
-                          ) : null}
-                          {!ing.amount && !ing.unit ? <span data-translate>{ing.name}</span> : null}
-                        </span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+            <IngredientPanel ingredients={r.ingredients ?? []} servings={r.servings ?? null} />
           </section>
 
           {/* Steps */}

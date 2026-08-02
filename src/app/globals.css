@@ -191,7 +191,7 @@
   }
 }
 
-/* ----- Print (recipe checklist view) ----- */
+/* ----- Print (recipe checklist and meal plan) ----- */
 @media print {
   body {
     background: #fff !important;
@@ -201,18 +201,19 @@
     -webkit-print-color-adjust: exact;
   }
 
-  .recipe-print-root {
+  .print-sheet {
     max-width: 100% !important;
   }
 
-  .recipe-print-root .card,
-  .recipe-print-root .recipe-block {
+  .print-sheet .card,
+  .print-sheet .recipe-block {
     box-shadow: none !important;
     border-color: #ccc !important;
     break-inside: avoid;
   }
 
-  .recipe-print-root input[type="checkbox"] {
+  /* Checkboxes stay: a printed shopping list is meant to be ticked with a pen. */
+  .print-sheet input[type="checkbox"] {
     width: 1rem;
     height: 1rem;
     accent-color: #111;
@@ -220,8 +221,27 @@
     -webkit-print-color-adjust: exact;
   }
 
-  .recipe-print-root a[href] {
+  .print-sheet a[href] {
     color: inherit !important;
     text-decoration: none !important;
+  }
+
+  /* Plan-only, deliberately not on .print-sheet: the recipe view shares that
+     class, and rules like break-inside would strand its long ingredient list on
+     a page of its own. */
+
+  /* A day of the plan, and a day's worth of the shopping list, are short enough
+     to be worth keeping whole. */
+  .plan-print section,
+  .plan-print > div > div {
+    break-inside: avoid;
+  }
+
+  /* Form controls print as empty boxes. The planner hides these and prints a
+     plain-text line in their place. */
+  .plan-print select,
+  .plan-print input[type="time"],
+  .plan-print input[type="text"] {
+    display: none !important;
   }
 }

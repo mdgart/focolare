@@ -1,10 +1,12 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   advanceCookStepAction,
   armStepTimerAction,
   completeCookSessionAction,
+  setCookSessionScaleAction,
   skipPendingTimersForCookStepAction,
 } from "@/actions/cook";
 import {
@@ -35,11 +37,28 @@ export function CookSessionClient(props: {
   timeline: TimelineJson[];
   initialStepIndex?: number;
   initialTimerArmedAtMs?: number | null;
+  /** Ingredients at this session's scale, for glancing at mid-cook. */
+  ingredients?: { amount?: string; unit?: string; name: string }[];
+  /** Percent, so 200 means the cook doubled it when they started. */
+  scalePercent?: number;
 }) {
   const [idx, setIdx] = useState(() => Math.max(0, props.initialStepIndex ?? 0));
   const [now, setNow] = useState(() => Date.now());
   const [timerArmedAt, setTimerArmedAt] = useState<number | null>(() => props.initialTimerArmedAtMs ?? null);
   const [pendingArm, setPendingArm] = useState(false);
+  const router = useRouter();
+
+  /** The server re-scales and re-renders, so the panel can't drift from the session. */
+  const setScale = useCallback(
+    async (percent: number) => {
+      await setCookSessionScaleAction({ cookSessionId: props.cookSessionId, scalePercent: percent });
+      router.refresh();
+    },
+    [props.cookSessionId, router],
+  );
+
+  /** "steps" while a timer runs is the point: read ahead and get things ready. */
+  const [peek, setPeek] = useState<"none" | "steps" | "ingredients">("none");
   /** On by default — the whole point of a cook screen is that you can glance at it. */
   const [keepAwake, setKeepAwake] = useState(true);
   const wakeLock = useWakeLock(keepAwake);
@@ -364,6 +383,108 @@ export function CookSessionClient(props: {
             )}
           </p>
           {voiceHint ? <p className="mt-2 text-xs text-amber-900">{voiceHint}</p> : null}
+        </div>
+      ) : null}
+
+      {/* Reading ahead while something simmers is most of what a cook does with
+          a spare five minutes, and the timer is server-side, so this can't
+          disturb it. */}
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setPeek(peek === "steps" ? "none" : "steps")}
+          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+            peek === "steps"
+              ? "border-amber-300 bg-amber-50 text-amber-900"
+              : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
+          }`}
+        >
+          All steps
+        </button>
+        {props.ingredients && props.ingredients.length > 0 ? (
+          <button
+            type="button"
+            onClick={() => setPeek(peek === "ingredients" ? "none" : "ingredients")}
+            className={`rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+              peek === "ingredients"
+                ? "border-amber-300 bg-amber-50 text-amber-900"
+                : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
+            }`}
+          >
+            Ingredients
+            {props.scalePercent && props.scalePercent !== 100
+              ? ` (×${Math.round(props.scalePercent) / 100})`
+              : ""}
+          </button>
+        ) : null}
+        {timerArmedAt != null ? (
+          <span className="text-xs text-stone-500">
+            Timer runs even if you close this — you&apos;ll get a notification, and this page comes
+            back where you left it.
+          </span>
+        ) : null}
+      </div>
+
+      {peek === "steps" ? (
+        <ol className="mb-4 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-stone-200 bg-stone-50/70 p-3">
+          {props.timeline.map((s, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                onClick={() => setIdx(i)}
+                className={`flex w-full items-baseline gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-white ${
+                  i === idx ? "font-semibold text-stone-900" : "text-stone-600"
+                }`}
+              >
+                <span className="w-5 shrink-0 tabular-nums text-xs text-stone-400">{i + 1}</span>
+                <span className="min-w-0 flex-1">{s.title}</span>
+                {s.durationSeconds > 0 ? (
+                  <span className="shrink-0 text-xs tabular-nums text-stone-400">
+                    {Math.round(s.durationSeconds / 60)}m
+                  </span>
+                ) : null}
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+
+      {peek === "ingredients" && props.ingredients ? (
+        <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50/70 p-3">
+          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-medium uppercase tracking-wide text-stone-500">
+              Making
+            </span>
+            {[50, 100, 200, 300].map((percent) => (
+              <button
+                key={percent}
+                type="button"
+                onClick={() => void setScale(percent)}
+                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
+                  (props.scalePercent ?? 100) === percent
+                    ? "border-amber-300 bg-amber-50 text-amber-900"
+                    : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
+                }`}
+              >
+                ×{percent / 100}
+              </button>
+            ))}
+          </div>
+          <ul className="max-h-56 space-y-1 overflow-y-auto text-sm text-stone-700">
+            {props.ingredients.map((ing, i) => (
+              <li key={i}>
+                {ing.amount ? (
+                  <span className="font-semibold tabular-nums">{ing.amount}</span>
+                ) : null}
+                {ing.unit ? <span className="text-stone-500"> {ing.unit}</span> : null}
+                <span className="ml-1.5">{ing.name}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-stone-500">
+            Amounts only. Step timings stay as written — a bigger batch takes longer in ways no
+            ratio predicts.
+          </p>
         </div>
       ) : null}
 

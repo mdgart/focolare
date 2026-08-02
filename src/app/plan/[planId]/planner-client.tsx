@@ -20,6 +20,8 @@ import {
   MEAL_ORDER,
   type MealType,
 } from "@/lib/meal-plan";
+import { DeletePlanButton } from "./delete-plan-button";
+import { IngredientsModal } from "./ingredients-modal";
 import { RecipePicker } from "./recipe-picker";
 
 /** Common answers to "how long have you got?", in minutes. */
@@ -32,6 +34,11 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
   const [picking, setPicking] = useState<{ slotId: string; date: string; meal: MealType } | null>(
     null,
   );
+  /** The meal the ingredients popup is showing; null when it's closed. */
+  const [showingIngredients, setShowingIngredients] = useState<{
+    date: string;
+    meal: MealType;
+  } | null>(null);
   const [shareSlug, setShareSlug] = useState(plan.shareSlug);
 
   const dates = enumerateDates(plan.startDate, plan.endDate);
@@ -84,7 +91,7 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
           </p>
           <h1 className="text-3xl sm:text-4xl">{plan.title}</h1>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 print:hidden">
           <button
             type="button"
             disabled={isPending}
@@ -115,6 +122,7 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
           >
             {shareSlug ? "Stop sharing" : "Share"}
           </button>
+          <DeletePlanButton planId={plan.id} planTitle={plan.title} />
         </div>
       </div>
 
@@ -145,8 +153,12 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
                 return (
                   <div
                     key={meal}
+                    // An empty meal is a prompt to fill it in, which means
+                    // nothing on paper.
                     className={`rounded-xl border p-3 transition ${
-                      planned ? "border-sand-strong bg-[#fffdf8]" : "border-dashed border-sand"
+                      planned
+                        ? "border-sand-strong bg-[#fffdf8]"
+                        : "border-dashed border-sand print:hidden"
                     }`}
                   >
                     <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-ink">
@@ -155,7 +167,7 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
                         checked={planned}
                         disabled={isPending}
                         onChange={(e) => toggleMeal(date, meal, e.target.checked)}
-                        className="h-4 w-4 rounded border-sand-strong accent-terracotta"
+                        className="h-4 w-4 rounded border-sand-strong accent-terracotta print:hidden"
                       />
                       {MEAL_LABEL[meal]}
                     </label>
@@ -163,36 +175,57 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
                     {slot ? (
                       <div className="mt-3 space-y-2">
                         {slot.recipeId ? (
-                          <div className="flex items-start justify-between gap-2">
-                            <Link
-                              href={`/recipe/${slot.recipeId}`}
-                              className="min-w-0 text-sm font-medium text-ink hover:text-terracotta-strong"
-                            >
-                              {slot.recipeTitle}
-                            </Link>
+                          <>
+                            <div className="flex items-start justify-between gap-2">
+                              <Link
+                                href={`/recipe/${slot.recipeId}`}
+                                className="min-w-0 text-sm font-medium text-ink hover:text-terracotta-strong"
+                              >
+                                {slot.recipeTitle}
+                              </Link>
+                              <button
+                                type="button"
+                                disabled={isPending}
+                                onClick={() => patchSlot(slot, { recipeId: null })}
+                                className="shrink-0 text-xs text-ink-muted hover:text-red-700 print:hidden"
+                                title="Remove this recipe"
+                              >
+                                ×
+                              </button>
+                            </div>
                             <button
                               type="button"
-                              disabled={isPending}
-                              onClick={() => patchSlot(slot, { recipeId: null })}
-                              className="shrink-0 text-xs text-ink-muted hover:text-red-700"
-                              title="Remove this recipe"
+                              onClick={() => setShowingIngredients({ date, meal })}
+                              className="rounded-lg border border-sand-strong px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:border-terracotta hover:text-terracotta-strong print:hidden"
                             >
-                              ×
+                              Ingredients
                             </button>
-                          </div>
+                          </>
                         ) : (
                           <button
                             type="button"
                             onClick={() => setPicking({ slotId: slot.id, date, meal })}
-                            className="w-full rounded-lg border border-dashed border-sand-strong px-3 py-2 text-sm text-ink-muted transition hover:border-terracotta hover:text-terracotta-strong"
+                            className="w-full rounded-lg border border-dashed border-sand-strong px-3 py-2 text-sm text-ink-muted transition hover:border-terracotta hover:text-terracotta-strong print:hidden"
                           >
                             Choose a recipe
                           </button>
                         )}
 
-                        <div className="flex gap-2">
-                          <label className="min-w-0 flex-1 text-[0.7rem] font-medium uppercase tracking-wide text-ink-muted">
-                            Time
+                        {/* On paper the two controls below are empty boxes, so
+                            print their values as a plain line instead. */}
+                        <p className="hidden text-xs text-ink-soft print:block">
+                          Eat at {slot.mealTime ?? DEFAULT_MEAL_TIMES[meal]}
+                          {slot.timeAvailableMinutes
+                            ? ` · ${slot.timeAvailableMinutes} min to cook`
+                            : ""}
+                        </p>
+
+                        <div className="flex gap-2 print:hidden">
+                          <label
+                            className="min-w-0 flex-1 text-[0.7rem] font-medium uppercase tracking-wide text-ink-muted"
+                            title="How long you've got to cook this meal. Only used to pick recipes that fit — it doesn't affect reminders."
+                          >
+                            Time I have
                             <select
                               value={slot.timeAvailableMinutes ?? ""}
                               disabled={isPending}
@@ -213,7 +246,10 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
                               ))}
                             </select>
                           </label>
-                          <label className="min-w-0 flex-1 text-[0.7rem] font-medium uppercase tracking-wide text-ink-muted">
+                          <label
+                            className="min-w-0 flex-1 text-[0.7rem] font-medium uppercase tracking-wide text-ink-muted"
+                            title="When you want to sit down to eat. This is what the start-cooking reminder counts back from."
+                          >
                             Eat at
                             <input
                               type="time"
@@ -239,10 +275,20 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
         ))}
       </div>
 
-      <p className="text-xs text-ink-muted">
-        When a meal has a recipe and a time, Focolare works backwards through the steps and reminds
-        you when to start cooking. Times are in {plan.timezone}.
+      <p className="text-xs text-ink-muted print:hidden">
+        &ldquo;Time I have&rdquo; only shapes which recipes get suggested. When a meal has a recipe
+        and an eat-at time, Focolare works backwards through the steps and reminds you when to start
+        cooking. Times are in {plan.timezone}.
       </p>
+
+      {showingIngredients ? (
+        <IngredientsModal
+          planId={plan.id}
+          date={showingIngredients.date}
+          meal={showingIngredients.meal}
+          onClose={() => setShowingIngredients(null)}
+        />
+      ) : null}
 
       {picking ? (
         <RecipePicker
