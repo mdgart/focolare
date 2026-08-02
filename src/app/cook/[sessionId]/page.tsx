@@ -95,8 +95,24 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
 
   return (
     <div className="space-y-4">
-      <Link href={`/recipe/${r.id}`} className="text-sm font-medium text-amber-900 hover:text-amber-950 hover:underline">
-        ← {r.title}
+      {/* A proper target rather than a line of underlined text: this gets
+          pressed mid-cook, often one-handed and rarely with dry hands. */}
+      <Link
+        href={`/recipe/${r.id}`}
+        aria-label={`Back to ${r.title}`}
+        className="inline-flex max-w-full items-center gap-2 rounded-full border border-stone-300 bg-white py-2 pl-3 pr-4 text-sm font-medium text-stone-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50/60 hover:text-amber-900"
+      >
+        <svg
+          viewBox="0 0 20 20"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          className="h-4 w-4 shrink-0 text-stone-400"
+          aria-hidden="true"
+        >
+          <path d="M12 4.5L6.5 10l5.5 5.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className="truncate">{r.title}</span>
       </Link>
       <CookSessionClient
         cookSessionId={cs.id}

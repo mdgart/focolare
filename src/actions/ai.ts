@@ -131,7 +131,13 @@ const SYSTEM_PROMPT = `You convert pasted, free-form recipe text into structured
 
 Rules:
 - Extract faithfully. Never invent ingredients, amounts, or steps that are not in the text; light rewording for clarity is fine.
-- Split the method into sensible discrete steps a cook can check off one at a time. Merge trivial fragments; split run-on paragraphs.
+- Split the method by *timing*, not by sentence. A step earns its own row only when it contains a wait the cook could walk away from — roughly five minutes or more of baking, proving, resting, chilling, simmering or marinating. Everything else gets folded into the step beside it.
+- Short attended actions never get their own step, even when the text gives them a time. "Add the garlic and cook for another minute", "toast the spices for 30 seconds", "bring a pan of water to the boil" belong inside the step around them, with the timing kept in the wording.
+- Consecutive hands-on actions belong in ONE step: "peel and dice the onion", "measure the flour" and "grease the tin" is one step, not three. Gathering them up is not inventing — keep the source wording, just under a single instruction.
+- Worked example. This method:
+    "Chop the onion. Slice the garlic. Grate the cheese. Put a pan of salted water on to boil. Heat oil, add the onion and cook 8 minutes until soft. Add the garlic and cook 1 minute. Tip in tomatoes, simmer 25 minutes. Meanwhile cook the pasta 9 minutes. Drain and toss with the sauce."
+  is FOUR steps, not eight: (1) prep everything and get the water on, (2) soften the onion, then the garlic, 8 min, (3) simmer the sauce, 25 min, (4) cook the pasta and toss it through, 9 min.
+- Aim for 4-6 steps for a weeknight dish. More than 8 means hands-on actions were split that should have been gathered up.
 - Time fields power real kitchen timers, so only set them from times the text states or clearly implies ("overnight" ≈ 8 hours, "until doubled, about 1 hour" → 60).
 - If the pasted text is not a recipe at all, still fill the schema: use an empty ingredients array, one step whose instruction says the text does not look like a recipe, and an empty title.`;
 
@@ -235,7 +241,9 @@ Rules:
 - Cook like a sensible home cook, not a stunt chef. Favour ordinary technique and equipment.
 - When the user lists ingredients they have, build the dish around those and keep additions to common staples (salt, pepper, oil, butter, flour, onion, garlic, stock, basic spices). Say so in the description if you add anything notable.
 - Give real amounts. Every ingredient needs a usable quantity — never "some" or "to taste" as the only measure.
-- Split the method into discrete steps a cook can check off one at a time.
+- Split the method by *timing*, not by sentence. A step earns its own row only when it contains a wait the cook could walk away from — roughly five minutes or more of baking, proving, resting, chilling or simmering. Fold everything else into the step beside it.
+- Short attended actions never get their own step, even when you give them a time: softening garlic for a minute or bringing water to the boil belongs inside the surrounding step, with the timing in the wording. Consecutive hands-on actions — chopping, measuring, greasing a tin — are one step, not three.
+- Aim for 4-6 steps for a weeknight dish. More than 8 means hands-on actions were split that should have been gathered up.
 - Time fields drive real kitchen timers, so give honest durations for anything that takes time (simmering, roasting, resting, proving) and leave them null for instant actions.
 - Set the language field to the language the USER wrote their request in, and write the whole recipe in that same language.
 - If the request is impossible or not about food, still fill the schema: empty title, empty ingredients, and one step whose instruction explains why you can't make a recipe from it.`;

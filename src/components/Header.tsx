@@ -5,6 +5,7 @@ import { countOngoingPreparationsForUser } from "@/actions/preparations";
 import { isAdminSessionUser } from "@/lib/admin-auth";
 import { getPublicLogoMarkUrl } from "@/lib/public-logo-url";
 import { getServerSession } from "@/lib/session";
+import { HeaderNav, type HeaderNavItem } from "@/components/HeaderNav";
 import { UserAccountMenu } from "@/components/UserAccountMenu";
 
 export async function Header() {
@@ -17,6 +18,17 @@ export async function Header() {
         countOngoingPreparationsForUser(),
       ])
     : [null, 0];
+
+  const navItems: HeaderNavItem[] = [
+    { href: "/discover", label: "Discover", icon: "discover" },
+    ...(session?.user
+      ? [{ href: "/plan", label: "Planner", icon: "planner" as const }]
+      : []),
+    { href: "/create/recipe", label: "Create", icon: "create" },
+    ...(showAdmin
+      ? [{ href: "/admin/taxonomy", label: "Admin", icon: "admin" as const, accent: true }]
+      : []),
+  ];
 
   return (
     <header className="sticky top-0 z-50 border-b border-sand bg-[#faf5ecdd] backdrop-blur-md print:hidden">
@@ -37,33 +49,7 @@ export async function Header() {
             </span>
           </Link>
 
-          <nav className="hidden flex-1 items-center justify-center gap-7 text-[0.95rem] lg:flex">
-            <Link href="/discover" className="font-medium text-ink-soft transition hover:text-terracotta-strong">
-              Discover
-            </Link>
-            {session?.user ? (
-              <Link
-                href="/plan"
-                className="font-medium text-ink-soft transition hover:text-terracotta-strong"
-              >
-                Planner
-              </Link>
-            ) : null}
-            <Link
-              href="/create/recipe"
-              className="font-medium text-ink-soft transition hover:text-terracotta-strong"
-            >
-              Create
-            </Link>
-            {showAdmin ? (
-              <Link
-                href="/admin/taxonomy"
-                className="font-medium text-terracotta transition hover:text-terracotta-strong"
-              >
-                Admin
-              </Link>
-            ) : null}
-          </nav>
+          <HeaderNav items={navItems} variant="bar" />
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-4">
             {session?.user?.email ? (
@@ -90,27 +76,9 @@ export async function Header() {
           </div>
         </div>
 
-        <nav
-          className="flex gap-2 overflow-x-auto border-t border-sand/70 py-2 lg:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          aria-label="Main"
-        >
-          <HeaderChip href="/discover">Discover</HeaderChip>
-          {session?.user ? <HeaderChip href="/plan">Planner</HeaderChip> : null}
-          <HeaderChip href="/create/recipe">Create</HeaderChip>
-          {showAdmin ? <HeaderChip href="/admin/taxonomy">Admin</HeaderChip> : null}
-        </nav>
+        <HeaderNav items={navItems} variant="chips" />
       </div>
     </header>
   );
 }
 
-function HeaderChip({ href, children }: { href: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="shrink-0 whitespace-nowrap rounded-full border border-sand-strong bg-surface px-3.5 py-1.5 text-sm font-medium text-ink-soft transition hover:border-terracotta hover:text-terracotta-strong"
-    >
-      {children}
-    </Link>
-  );
-}
