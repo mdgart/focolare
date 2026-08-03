@@ -104,6 +104,23 @@ for (const row of GRAMS_PER_CUP) {
   }
 }
 
+function extraRowFor(
+  ingredientName: string,
+  extra?: ReadonlyMap<string, { grams: number; liquid: boolean }>,
+): { grams: number; liquid: boolean } | null {
+  if (!extra) return null;
+  for (const variant of nameVariants(ingredientName)) {
+    const hit = extra.get(variant);
+    if (hit) return hit;
+  }
+  return null;
+}
+
+/** True when the curated table has nothing for this ingredient. */
+export function needsLookedUpDensity(ingredientName: string): boolean {
+  return tableRowFor(ingredientName) === null;
+}
+
 function tableRowFor(ingredientName: string): { grams: number; liquid: boolean } | null {
   for (const variant of nameVariants(ingredientName)) {
     const hit = BY_VARIANT.get(variant);
@@ -158,12 +175,18 @@ export function convertIngredient(
   ing: { amount?: string; unit?: string; name: string },
   to: MeasureSystem,
   amountValue: number | null,
+  /**
+   * Densities looked up elsewhere for ingredients the table doesn't carry,
+   * keyed by normalized name. The hand-written table still wins where it has an
+   * answer — it's the one that was checked by a person.
+   */
+  extra?: ReadonlyMap<string, { grams: number; liquid: boolean }>,
 ): Converted | null {
   const from = resolveUnit(ing.unit);
   if (!from || amountValue == null || !Number.isFinite(amountValue) || amountValue <= 0) return null;
   if (from.system === to) return null;
 
-  const row = tableRowFor(ing.name);
+  const row = tableRowFor(ing.name) ?? extraRowFor(ing.name, extra);
   const wantKind: UnitKind = to === "metric" ? (row?.liquid ? "volume" : "weight") : "volume";
   const inBase = amountValue * from.base;
 

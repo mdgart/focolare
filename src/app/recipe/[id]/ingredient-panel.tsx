@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formFieldDense } from "@/lib/form-styles";
 import {
   factorForTargetAmount,
@@ -8,7 +8,9 @@ import {
   scaleIngredients,
   type RecipeIngredient,
 } from "@/lib/scale-amount";
-import { convertIngredient, type MeasureSystem } from "@/lib/unit-convert";
+import { convertIngredient, needsLookedUpDensity, type MeasureSystem } from "@/lib/unit-convert";
+import { estimateDensitiesAction } from "@/actions/density";
+import { normalizeIngredientName } from "@/lib/normalize-ingredient";
 import { substitutionsFor } from "@/lib/substitutions";
 
 /** Offered when a recipe doesn't say how many it serves. */
@@ -41,6 +43,44 @@ export function IngredientPanel({
   const [openSwap, setOpenSwap] = useState<number | null>(null);
   /** Null while showing the recipe's own units. */
   const [showIn, setShowIn] = useState<MeasureSystem | null>(null);
+  /** Densities fetched for ingredients the curated table doesn't carry. */
+  const [lookedUp, setLookedUp] = useState<Map<string, { grams: number; liquid: boolean }>>(
+    () => new Map(),
+  );
+  const [lookingUp, setLookingUp] = useState(false);
+
+  useEffect(() => {
+    if (!showIn) return;
+    const unknown = ingredients
+      .map((i) => i.name)
+      .filter((name) => name && needsLookedUpDensity(name))
+      .filter((name) => !lookedUp.has(normalizeIngredientName(name)));
+    if (unknown.length === 0) return;
+
+    let cancelled = false;
+    // State only ever changes in the async callback, never synchronously in the
+    // effect body (react-hooks/set-state-in-effect).
+    void Promise.resolve()
+      .then(() => {
+        if (!cancelled) setLookingUp(true);
+        return estimateDensitiesAction(unknown);
+      })
+      .then((res) => {
+        if (cancelled) return;
+        setLookingUp(false);
+        if (res.densities.length === 0) return;
+        setLookedUp((prev) => {
+          const next = new Map(prev);
+          for (const d of res.densities) {
+            next.set(d.normalizedName, { grams: d.gramsPerCup, liquid: d.liquid });
+          }
+          return next;
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showIn, ingredients, lookedUp]);
 
   const scaled = useMemo(() => {
     const lines = scaleIngredients(ingredients, factor);
@@ -48,11 +88,11 @@ export function IngredientPanel({
     // Conversion happens per ingredient and after scaling, so an amount that
     // can't be read is simply left alone by both.
     return lines.map((line) => {
-      const next = convertIngredient(line, showIn, parseNumber(line.amount ?? ""));
+      const next = convertIngredient(line, showIn, parseNumber(line.amount ?? ""), lookedUp);
       if (!next) return { ...line, converted: false };
       return { ...line, amount: next.amount, unit: next.unit, converted: true };
     });
-  }, [ingredients, factor, showIn]);
+  }, [ingredients, factor, showIn, lookedUp]);
 
   const otherSystem: MeasureSystem = writtenIn === "metric" ? "us" : "metric";
   const unconvertible = showIn ? scaled.filter((l) => !l.converted && l.unit).length : 0;
@@ -195,6 +235,10 @@ export function IngredientPanel({
             <span className="pb-2 text-sm text-ink-muted">{pinned.unit}</span>
           ) : null}
         </div>
+      ) : null}
+
+      {showIn && lookingUp ? (
+        <p className="mt-3 text-xs text-ink-muted print:hidden">Looking up a few measurements…</p>
       ) : null}
 
       {showIn && unconvertible > 0 ? (

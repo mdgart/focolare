@@ -28,8 +28,11 @@ import {
   timerFor,
   type ArmedTimer,
 } from "@/lib/cook-timers";
+import { createAlarm } from "@/lib/cook-alarm";
 import { formatDurationClock } from "@/lib/format-duration";
 import { useWakeLock } from "@/components/useWakeLock";
+import { VOICE_COOK_STORAGE_KEY, voiceCookEnabled } from "@/components/VoiceCookSetting";
+import { useLocalStorageValue } from "@/lib/use-local-storage-value";
 
 type TimelineJson = {
   title: string;
@@ -125,6 +128,39 @@ export function CookSessionClient(props: {
   const stepDurationRef = useRef(0);
   stepDurationRef.current = step?.durationSeconds ?? 0;
 
+  const alarmRef = useRef<ReturnType<typeof createAlarm> | null>(null);
+  alarmRef.current ??= createAlarm();
+  /** Keyed by step and start time, so a restarted timer can ring again. */
+  const rungRef = useRef<Set<string>>(new Set());
+  const [justFinished, setJustFinished] = useState<number | null>(null);
+
+  /**
+   * Ring when a countdown reaches zero, for whichever step it belongs to.
+   *
+   * Driven off the same tick that draws the clock, so it fires whether or not
+   * the cook is looking at that step — a timer finishing on step 3 matters
+   * while you're reading step 4.
+   */
+  useEffect(() => {
+    for (const timer of armed) {
+      if (timer.state !== "running") continue;
+      const duration = props.timeline[timer.stepIndex]?.durationSeconds ?? 0;
+      if (duration <= 0) continue;
+      if (remainingMsFor(armed, timer.stepIndex, duration, now) > 0) continue;
+
+      const key = `${timer.stepIndex}:${timer.atMs}`;
+      if (rungRef.current.has(key)) continue;
+      rungRef.current.add(key);
+      alarmRef.current?.ring();
+      setJustFinished(timer.stepIndex);
+    }
+  }, [armed, now, props.timeline]);
+
+  useEffect(() => {
+    // Looking at the step that rang is acknowledgement enough.
+    if (justFinished === idx) setJustFinished(null);
+  }, [justFinished, idx]);
+
 
 
   async function onDone() {
@@ -148,6 +184,8 @@ export function CookSessionClient(props: {
     if (pendingArm || !step || step.durationSeconds <= 0 || timerArmedAt != null) return;
     setPendingArm(true);
     setVoiceHint(null);
+    // Browsers only allow sound after a gesture, and zero o'clock isn't one.
+    alarmRef.current?.prime();
     try {
       const res = await armStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
       if ("error" in res) {
@@ -187,6 +225,7 @@ export function CookSessionClient(props: {
       return;
     }
 
+    alarmRef.current?.prime();
     setArmed((all) => resumeStep(all, idx, step.durationSeconds, Date.now()));
     await resumeStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
   }, [armed, idx, step, props.cookSessionId]);
@@ -194,6 +233,8 @@ export function CookSessionClient(props: {
   /** Back to the full duration — the one thing that legitimately resets a timer. */
   const restartTimer = useCallback(async () => {
     if (!step || step.durationSeconds <= 0) return;
+    // A restart gets a fresh start time, so it rings again on its own merits.
+    alarmRef.current?.prime();
     setArmed((all) => armStep(all, idx, Date.now()));
     await armStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
   }, [idx, step, props.cookSessionId]);
@@ -222,7 +263,7 @@ export function CookSessionClient(props: {
    * the way to read ahead that leaves it alone.
    */
   const requestNext = useCallback(async () => {
-    if (advanceWouldStopTimer(armed, idx) && !confirmNext) {
+    if (advanceWouldStopTimer(armed, idx, step?.durationSeconds ?? 0, Date.now()) && !confirmNext) {
       setConfirmNext(true);
       // Said out loud too: the whole point of voice is that nobody is looking.
       setVoiceHint("That would stop this step's timer — say next again to confirm.");
@@ -230,7 +271,7 @@ export function CookSessionClient(props: {
     }
     setConfirmNext(false);
     await goNext();
-  }, [armed, idx, confirmNext, goNext]);
+  }, [armed, idx, step, confirmNext, goNext]);
 
   const requestNextRef = useRef(requestNext);
   requestNextRef.current = requestNext;
@@ -355,7 +396,10 @@ export function CookSessionClient(props: {
     return remainingMsFor(armed, idx, step.durationSeconds, now);
   }, [step, armed, idx, now]);
 
-  const showVoiceUi = androidSpeechRecognitionAvailable();
+  // Opted into in settings; cook mode only shows the button, never the pitch.
+  const voiceAllowed =
+    voiceCookEnabled(useLocalStorageValue(VOICE_COOK_STORAGE_KEY)) &&
+    androidSpeechRecognitionAvailable();
 
   if (!step) {
     return (
@@ -399,6 +443,30 @@ export function CookSessionClient(props: {
           <p className="text-xs font-semibold uppercase tracking-widest text-amber-900/60">
             Step {idx + 1} / {props.timeline.length}
           </p>
+          {voiceAllowed ? (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={voiceOn}
+              onClick={() => setVoiceOn((v) => !v)}
+              title={
+                voiceOn
+                  ? "Listening — say “next”, “start timer” or “finish”"
+                  : "Listen for “next”, “start timer” and “finish”"
+              }
+              className={`ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
+                voiceOn
+                  ? "border-emerald-300 bg-emerald-50 text-emerald-900"
+                  : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
+              }`}
+            >
+              <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6" className="h-3.5 w-3.5" aria-hidden="true">
+                <rect x="7.5" y="2.5" width="5" height="9" rx="2.5" />
+                <path d="M4.5 9a5.5 5.5 0 0 0 11 0M10 14.5v3" strokeLinecap="round" />
+              </svg>
+              {voiceOn ? "Listening" : "Voice"}
+            </button>
+          ) : null}
           {wakeLock.supported ? (
             <button
               type="button"
@@ -453,12 +521,18 @@ export function CookSessionClient(props: {
                 {formatDurationClock(Math.ceil(displayMs / 1000))}
               </div>
             </div>
-            <p className="mt-3 text-xs font-medium text-stone-500">
+            <p
+              className={`mt-3 text-xs font-medium ${
+                displayMs <= 0 && stepTimer ? "text-amber-800" : "text-stone-500"
+              }`}
+            >
               {needsTimerStart
                 ? "Duration for this step — start the timer when you begin."
-                : timerPaused
-                  ? "Paused — it stays here until you pick it up again"
-                  : "Time left on this step"}
+                : displayMs <= 0 && stepTimer
+                  ? "Time's up — this step is done"
+                  : timerPaused
+                    ? "Paused — it stays here until you pick it up again"
+                    : "Time left on this step"}
             </p>
             {needsTimerStart ? (
               <button
@@ -492,61 +566,6 @@ export function CookSessionClient(props: {
           </>
         ) : null}
       </div>
-
-      {showVoiceUi ? (
-        <div className="mb-4 rounded-xl border border-emerald-200/90 bg-emerald-50/80 px-4 py-3 text-left text-sm text-stone-800">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <span className="font-semibold text-emerald-950">Voice (Android)</span>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={voiceOn}
-              aria-label={voiceOn ? "Turn off voice commands" : "Turn on voice commands"}
-              onClick={() => setVoiceOn((v) => !v)}
-              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
-                voiceOn ? "bg-emerald-600" : "bg-stone-300"
-              }`}
-            >
-              <span
-                className={`pointer-events-none absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
-                  voiceOn ? "left-[calc(100%-1.625rem)]" : "left-0.5"
-                }`}
-              />
-            </button>
-          </div>
-          <p className="mt-2 text-xs leading-snug text-stone-600">
-            {voiceOn ? (
-              <>
-                <span className="font-medium text-emerald-900">Listening.</span>{" "}
-                {needsTimerStart ? (
-                  <>
-                    Say <q className="font-semibold text-stone-800">start timer</q> (or <q className="font-semibold text-stone-800">go</q>) to begin the countdown.{" "}
-                  </>
-                ) : null}
-                {canNext ? (
-                  <>
-                    Say <q className="font-semibold text-stone-800">next step</q> (or &ldquo;next&rdquo;, &ldquo;continue&rdquo;) to advance.
-                  </>
-                ) : (
-                  <>
-                    Say <q className="font-semibold text-stone-800">finish</q> or <q className="font-semibold text-stone-800">done</q> to complete.
-                  </>
-                )}
-              </>
-            ) : (
-              "Turn on to use the microphone. Works in Chrome on Android; speak clearly after the tone."
-            )}
-          </p>
-          {voiceHint ? <p className="mt-2 text-xs text-amber-900">{voiceHint}</p> : null}
-        </div>
-      ) : null}
-
-      {armed.length > 0 ? (
-        <p className="mb-3 text-xs text-stone-500">
-          Timer runs even if you close this — you&apos;ll get a notification, and this page comes
-          back where you left it.
-        </p>
-      ) : null}
 
       {peek === "steps" ? (
         <ol className="mb-4 max-h-64 space-y-1 overflow-y-auto rounded-xl border border-stone-200 bg-stone-50/70 p-3">
@@ -617,6 +636,26 @@ export function CookSessionClient(props: {
             ratio predicts.
           </p>
         </div>
+      ) : null}
+
+      {voiceHint ? (
+        <p className="mb-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
+          {voiceHint}
+        </p>
+      ) : null}
+
+      {justFinished != null && justFinished !== idx ? (
+        <button
+          type="button"
+          onClick={() => void goToStep(justFinished)}
+          className="mb-3 flex w-full items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-left text-sm font-semibold text-amber-950 transition hover:bg-amber-100"
+        >
+          <span className="relative flex h-2.5 w-2.5 shrink-0" aria-hidden="true">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-500 opacity-70" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-600" />
+          </span>
+          Step {justFinished + 1}&apos;s timer is done — go there
+        </button>
       ) : null}
 
       {confirmNext ? (

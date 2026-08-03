@@ -177,12 +177,36 @@ check(
 
 /* ---------- warning before Next throws one away ---------- */
 
-check("advancing off a timing step is worth asking about", advanceWouldStopTimer(armed, 2), true);
-check("...including a paused one, which is still set up", advanceWouldStopTimer(paused, 2), true);
-check("advancing off an untimed step just goes", advanceWouldStopTimer(armed, 4), false);
+check(
+  "advancing off a running timer is worth asking about",
+  advanceWouldStopTimer(armed, 2, BAKE, T0 + 5 * MIN),
+  true,
+);
+check(
+  "...including a paused one, which is still set up",
+  advanceWouldStopTimer(paused, 2, BAKE, T0 + 90 * MIN),
+  true,
+);
+// The reported nuisance: being asked to confirm stopping a timer that has
+// already finished, at the moment you're trying to move on.
+check(
+  "a finished timer is not worth asking about",
+  advanceWouldStopTimer(armed, 2, BAKE, T0 + BAKE * 1000),
+  false,
+);
+check(
+  "...nor one long past its end",
+  advanceWouldStopTimer(armed, 2, BAKE, T0 + 60 * MIN),
+  false,
+);
+check(
+  "advancing off an untimed step just goes",
+  advanceWouldStopTimer(armed, 4, 0, T0),
+  false,
+);
 check(
   "a timer on another step is not a reason to nag",
-  advanceWouldStopTimer([running(5, T0)], 2),
+  advanceWouldStopTimer([running(5, T0)], 2, BAKE, T0),
   false,
 );
 

@@ -13,6 +13,7 @@ import { getServerSession } from "@/lib/session";
 import { MyRecipesList } from "./my-recipes-list";
 import { ProfileAvatarForm } from "./profile-avatar-form";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
+import { VoiceCookSetting } from "@/components/VoiceCookSetting";
 import { NotificationSettingsForm } from "./notification-settings-form";
 import { RestoreIntroButton } from "./restore-intro-button";
 import { VerifyEmailPanel } from "./verify-email-panel";
@@ -139,6 +140,7 @@ export default async function AccountPage() {
           </p>
         </div>
         <PushNotificationToggle vapidPublicKey={process.env.VAPID_PUBLIC_KEY?.trim() || null} />
+        <VoiceCookSetting />
       </section>
 
       <NotificationSettingsForm
