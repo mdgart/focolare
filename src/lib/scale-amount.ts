@@ -1,3 +1,5 @@
+import { repairIngredientParts } from "@/lib/ingredient-measure";
+
 /**
  * Scaling the amounts in a recipe.
  *
@@ -29,16 +31,20 @@ const NICE_FRACTIONS: [number, string][] = [
   [0.125, "⅛"],
   [0.25, "¼"],
   [1 / 3, "⅓"],
+  [0.375, "⅜"],
   [0.5, "½"],
+  [0.625, "⅝"],
   [2 / 3, "⅔"],
   [0.75, "¾"],
+  [0.875, "⅞"],
 ];
 
 /** How far off a nice fraction a value may be and still be written as one. */
 const FRACTION_TOLERANCE = 0.02;
 
-/** One number from an amount string, or null when it isn't one. */
-function parseNumber(raw: string): number | null {
+/** One number from an amount string, or null when it isn't one. Exported so the
+ * unit converter reads amounts exactly the way scaling does. */
+export function parseNumber(raw: string): number | null {
   const text = raw.trim();
   if (!text) return null;
 
@@ -144,7 +150,10 @@ export function scaleIngredients(
   ingredients: RecipeIngredient[],
   factor: number,
 ): ScaledIngredient[] {
-  return ingredients.map((ingredient) => {
+  return ingredients.map((raw) => {
+    // Older rows split "1 1/2" across amount and unit; repair before scaling,
+    // or the half is left stranded beside a scaled amount.
+    const ingredient = repairIngredientParts(raw);
     const scaled = scaleAmountText(ingredient.amount, factor);
     return {
       ...ingredient,

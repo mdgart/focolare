@@ -1,4 +1,4 @@
-import { formatIngredientLine } from "@/lib/ingredient-measure";
+import { formatIngredientLine, repairIngredientParts } from "@/lib/ingredient-measure";
 import { formatPlanDate, type MealType } from "@/lib/meal-plan";
 import { buildCoveredSet, ingredientCoveredBy, normalizeIngredientName } from "@/lib/normalize-ingredient";
 
@@ -195,7 +195,8 @@ export function buildIngredientLines(
   covered: Set<string>,
 ): IngredientLine[] {
   const lines: IngredientLine[] = [];
-  for (const ingredient of recipe.ingredients ?? []) {
+  for (const raw of recipe.ingredients ?? []) {
+    const ingredient = repairIngredientParts(raw);
     const name = ingredient.name?.trim();
     if (!name) continue;
     lines.push({

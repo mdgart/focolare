@@ -276,7 +276,11 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               Tick them off as you gather — boxes print empty so you can check them by hand.
             </p>
 
-            <IngredientPanel ingredients={r.ingredients ?? []} servings={r.servings ?? null} />
+            <IngredientPanel
+              ingredients={r.ingredients ?? []}
+              servings={r.servings ?? null}
+              writtenIn={r.ingredientMeasureSystem ?? "metric"}
+            />
           </section>
 
           {/* Steps */}
