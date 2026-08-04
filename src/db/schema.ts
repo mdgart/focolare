@@ -538,6 +538,33 @@ export const ingredientDensity = pgTable("ingredient_density", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * Per-cook, per-recipe reading preferences: scale, measuring system, chosen
+ * substitutions. Deliberately separate from the recipe itself — this is how
+ * *you* read it, not an edit to what the author wrote.
+ */
+export const recipeIngredientPref = pgTable(
+  "recipe_ingredient_pref",
+  {
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    recipeId: uuid("recipe_id")
+      .notNull()
+      .references(() => recipe.id, { onDelete: "cascade" }),
+    /** 100 means as written. */
+    scalePercent: integer("scale_percent").notNull().default(100),
+    /** 'recipe' | 'metric' | 'us'. */
+    unitSystem: text("unit_system").notNull().default("recipe"),
+    substitutions: jsonb("substitutions")
+      .$type<{ forIngredient: string; use: string; ratio: string }[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.recipeId] })],
+);
+
 /* ---------- Meal planner ---------- */
 
 export const mealPlan = pgTable(

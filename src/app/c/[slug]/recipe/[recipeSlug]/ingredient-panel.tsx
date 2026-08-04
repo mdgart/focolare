@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { formFieldDense } from "@/lib/form-styles";
+import { factorForTargetAmount, type RecipeIngredient } from "@/lib/scale-amount";
+import { needsLookedUpDensity, type MeasureSystem } from "@/lib/unit-convert";
+import { saveIngredientPrefsAction } from "@/actions/ingredient-prefs";
 import {
-  factorForTargetAmount,
-  parseNumber,
-  scaleIngredients,
-  type RecipeIngredient,
-} from "@/lib/scale-amount";
-import { convertIngredient, needsLookedUpDensity, type MeasureSystem } from "@/lib/unit-convert";
+  applyPrefs,
+  DEFAULT_PREFS,
+  prefsAreCustomised,
+  withSubstitution,
+  type ChosenSubstitution,
+  type IngredientPrefs,
+} from "@/lib/ingredient-prefs";
 import { SubstitutionsModal } from "./substitutions-modal";
 import { estimateDensitiesAction } from "@/actions/density";
 import { normalizeIngredientName } from "@/lib/normalize-ingredient";
@@ -46,21 +50,45 @@ export function IngredientPanel({
   servings,
   writtenIn,
   recipeTitle,
+  recipeId,
+  initialPrefs,
 }: {
   ingredients: RecipeIngredient[];
   servings: number | null;
   recipeTitle: string;
+  recipeId: string;
+  /** How this cook last read this recipe. Defaults when signed out. */
+  initialPrefs?: IngredientPrefs;
   /** The system the recipe was written in, so the toggle knows what "as written" is. */
   writtenIn: MeasureSystem;
 }) {
-  const [factor, setFactor] = useState(1);
+  const [prefs, setPrefs] = useState<IngredientPrefs>(initialPrefs ?? DEFAULT_PREFS);
+  const [, startSaving] = useTransition();
+
+  /**
+   * One writer: the whole preference object is sent, so a scale change can't
+   * race a substitution and drop it. Signed-out readers just get local state —
+   * the action refuses politely and the controls still work.
+   */
+  function update(next: IngredientPrefs) {
+    setPrefs(next);
+    startSaving(async () => {
+      await saveIngredientPrefsAction({ recipeId, prefs: next });
+    });
+  }
+
+  const factor = prefs.scalePercent / 100;
+  const setFactor = (f: number) =>
+    update({ ...prefs, scalePercent: Math.round(Math.min(10, Math.max(0.1, f)) * 100) });
+  const showIn = prefs.unitSystem === "recipe" ? null : prefs.unitSystem;
+  const setShowIn = (system: MeasureSystem | null) =>
+    update({ ...prefs, unitSystem: system ?? "recipe" });
+
   const [byIngredient, setByIngredient] = useState(false);
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
   const [target, setTarget] = useState("");
   const [openSwap, setOpenSwap] = useState<number | null>(null);
   const [askingSubs, setAskingSubs] = useState(false);
-  /** Null while showing the recipe's own units. */
-  const [showIn, setShowIn] = useState<MeasureSystem | null>(null);
   /** Densities fetched for ingredients the curated table doesn't carry. */
   const [lookedUp, setLookedUp] = useState<Map<string, { grams: number; liquid: boolean }>>(
     () => new Map(),
@@ -100,17 +128,11 @@ export function IngredientPanel({
     };
   }, [showIn, ingredients, lookedUp]);
 
-  const scaled = useMemo(() => {
-    const lines = scaleIngredients(ingredients, factor);
-    if (!showIn) return lines.map((l) => ({ ...l, converted: false }));
-    // Conversion happens per ingredient and after scaling, so an amount that
-    // can't be read is simply left alone by both.
-    return lines.map((line) => {
-      const next = convertIngredient(line, showIn, parseNumber(line.amount ?? ""), lookedUp);
-      if (!next) return { ...line, converted: false };
-      return { ...line, amount: next.amount, unit: next.unit, converted: true };
-    });
-  }, [ingredients, factor, showIn, lookedUp]);
+  // Shared with cook mode, so the two can't drift.
+  const scaled = useMemo(
+    () => applyPrefs(ingredients, prefs, writtenIn, lookedUp),
+    [ingredients, prefs, writtenIn, lookedUp],
+  );
 
   const otherSystem: MeasureSystem = writtenIn === "metric" ? "us" : "metric";
   const unconvertible = showIn ? scaled.filter((l) => !l.converted && l.unit).length : 0;
@@ -211,11 +233,13 @@ export function IngredientPanel({
               : "Show in cups and spoons"}
         </button>
 
-        {factor !== 1 ? (
+        {prefsAreCustomised(prefs) ? (
           <button
             type="button"
             onClick={() => {
-              setFactor(1);
+              // Clears the lot — scale, units and swaps — so "as written" means
+              // exactly that, and the stored row is deleted server-side.
+              update(DEFAULT_PREFS);
               setTarget("");
               setPinnedIndex(null);
             }}
@@ -320,6 +344,32 @@ export function IngredientPanel({
                             as written
                           </span>
                         ) : null}
+
+                        {/* The amount stays as written; the swap sits beside it,
+                            because a prose ratio can't be turned into a number. */}
+                        {ing.swap ? (
+                          <span className="mt-0.5 block text-xs text-terracotta-strong">
+                            Using {ing.swap.use}
+                            {ing.swap.ratio ? (
+                              <span className="text-ink-muted"> — {ing.swap.ratio}</span>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() =>
+                                update(
+                                  withSubstitution(prefs, {
+                                    forIngredient: ing.name,
+                                    use: "",
+                                    ratio: "",
+                                  }),
+                                )
+                              }
+                              className="ml-2 text-ink-muted underline-offset-2 hover:underline print:hidden"
+                            >
+                              undo
+                            </button>
+                          </span>
+                        ) : null}
                       </span>
                     </label>
 
@@ -364,6 +414,8 @@ export function IngredientPanel({
         <SubstitutionsModal
           ingredientNames={ingredients.map((i) => i.name).filter(Boolean)}
           recipeTitle={recipeTitle}
+          chosen={prefs.substitutions}
+          onChoose={(choice: ChosenSubstitution) => update(withSubstitution(prefs, choice))}
           onClose={() => setAskingSubs(false)}
         />
       ) : null}

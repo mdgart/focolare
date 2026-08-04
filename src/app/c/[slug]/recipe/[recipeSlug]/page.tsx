@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { getRecipeBundle, getRecipeIdBySlug } from "@/actions/recipes";
 import { isRecipeSaved } from "@/actions/saved";
+import { getIngredientPrefsAction } from "@/actions/ingredient-prefs";
 import { isAdminSessionUser } from "@/lib/admin-auth";
 import { canViewRecipe } from "@/lib/recipe-access";
 import { recipeEditPath, recipePath } from "@/lib/recipe-url";
@@ -73,11 +74,12 @@ export default async function RecipePage({
   );
   const isOwner = Boolean(user && ch.ownerUserId === user.id);
   const isDraft = r.publishedAt === null;
-  const [followerCount, following, avatarPublicUrl, saved] = await Promise.all([
+  const [followerCount, following, avatarPublicUrl, saved, ingredientPrefs] = await Promise.all([
     getChannelFollowerCount(ch.id),
     isUserFollowingChannel(user?.id ?? null, ch.id),
     getChannelAvatarPublicUrl(ch.avatarMediaId),
     isRecipeSaved(id),
+    getIngredientPrefsAction(r.id),
   ]);
 
   // Where a cook wrote the timing in prose but left the duration field empty,
@@ -292,6 +294,8 @@ export default async function RecipePage({
               servings={r.servings ?? null}
               writtenIn={r.ingredientMeasureSystem ?? "metric"}
               recipeTitle={r.title}
+              recipeId={r.id}
+              initialPrefs={ingredientPrefs}
             />
           </section>
 

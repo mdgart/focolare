@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   advanceCookStepAction,
@@ -8,7 +7,6 @@ import {
   completeCookSessionAction,
   pauseStepTimerAction,
   resumeStepTimerAction,
-  setCookSessionScaleAction,
   skipPendingTimersForCookStepAction,
 } from "@/actions/cook";
 import {
@@ -29,6 +27,9 @@ import {
   type ArmedTimer,
 } from "@/lib/cook-timers";
 import { createAlarm } from "@/lib/cook-alarm";
+import { IngredientControls } from "./ingredient-controls";
+import type { DisplayIngredient, IngredientPrefs } from "@/lib/ingredient-prefs";
+import type { MeasureSystem } from "@/lib/unit-convert";
 import { formatDurationClock } from "@/lib/format-duration";
 import { useWakeLock } from "@/components/useWakeLock";
 import { VOICE_COOK_STORAGE_KEY, voiceCookEnabled } from "@/components/VoiceCookSetting";
@@ -53,10 +54,13 @@ export function CookSessionClient(props: {
   initialStepIndex?: number;
   /** Every pending timer for the session, by the step it belongs to. */
   initialArmed?: ArmedTimer[];
-  /** Ingredients at this session's scale, for glancing at mid-cook. */
-  ingredients?: { amount?: string; unit?: string; name: string }[];
-  /** Percent, so 200 means the cook doubled it when they started. */
-  scalePercent?: number;
+  /** Ingredients as the cook's saved preferences render them. */
+  ingredients?: DisplayIngredient[];
+  recipeId: string;
+  prefs: IngredientPrefs;
+  writtenIn: MeasureSystem;
+  /** Unscaled, for the "amount I have" anchor. */
+  baseIngredients?: { amount?: string; unit?: string; name: string }[];
 }) {
   const [idx, setIdx] = useState(() => Math.max(0, props.initialStepIndex ?? 0));
   const [now, setNow] = useState(() => Date.now());
@@ -72,16 +76,6 @@ export function CookSessionClient(props: {
    */
   const [armed, setArmed] = useState<ArmedTimer[]>(() => props.initialArmed ?? []);
   const [pendingArm, setPendingArm] = useState(false);
-  const router = useRouter();
-
-  /** The server re-scales and re-renders, so the panel can't drift from the session. */
-  const setScale = useCallback(
-    async (percent: number) => {
-      await setCookSessionScaleAction({ cookSessionId: props.cookSessionId, scalePercent: percent });
-      router.refresh();
-    },
-    [props.cookSessionId, router],
-  );
 
   /** Set when Next would stop a running timer and we've asked first. */
   const [confirmNext, setConfirmNext] = useState(false);
@@ -431,8 +425,8 @@ export function CookSessionClient(props: {
               onClick={() => setPeek(peek === "ingredients" ? "none" : "ingredients")}
               label="Ingredients"
               detail={
-                props.scalePercent && props.scalePercent !== 100
-                  ? `×${Math.round(props.scalePercent) / 100}`
+                props.prefs.scalePercent !== 100
+                  ? `×${props.prefs.scalePercent / 100}`
                   : `${props.ingredients.length}`
               }
             />
@@ -601,25 +595,12 @@ export function CookSessionClient(props: {
 
       {peek === "ingredients" && props.ingredients ? (
         <div className="mb-4 rounded-xl border border-stone-200 bg-stone-50/70 p-3">
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-xs font-medium uppercase tracking-wide text-stone-500">
-              Making
-            </span>
-            {[50, 100, 200, 300].map((percent) => (
-              <button
-                key={percent}
-                type="button"
-                onClick={() => void setScale(percent)}
-                className={`rounded-full border px-2.5 py-1 text-xs font-medium transition ${
-                  (props.scalePercent ?? 100) === percent
-                    ? "border-amber-300 bg-amber-50 text-amber-900"
-                    : "border-stone-200 bg-white text-stone-500 hover:text-stone-800"
-                }`}
-              >
-                ×{percent / 100}
-              </button>
-            ))}
-          </div>
+          <IngredientControls
+            recipeId={props.recipeId}
+            prefs={props.prefs}
+            writtenIn={props.writtenIn}
+            baseIngredients={props.baseIngredients ?? []}
+          />
           <ul className="max-h-56 space-y-1 overflow-y-auto text-sm text-stone-700">
             {props.ingredients.map((ing, i) => (
               <li key={i}>
@@ -628,6 +609,15 @@ export function CookSessionClient(props: {
                 ) : null}
                 {ing.unit ? <span className="text-stone-500"> {ing.unit}</span> : null}
                 <span className="ml-1.5">{ing.name}</span>
+                {ing.needsEye ? (
+                  <span className="ml-1.5 text-xs text-stone-400">(as written)</span>
+                ) : null}
+                {ing.swap ? (
+                  <span className="block text-xs text-amber-800">
+                    Using {ing.swap.use}
+                    {ing.swap.ratio ? <span className="text-stone-500"> — {ing.swap.ratio}</span> : null}
+                  </span>
+                ) : null}
               </li>
             ))}
           </ul>
