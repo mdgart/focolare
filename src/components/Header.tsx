@@ -1,10 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { getChannelProfileForUser } from "@/actions/channels";
+import { getActiveCookForUser } from "@/actions/cook";
 import { countOngoingPreparationsForUser } from "@/actions/preparations";
 import { isAdminSessionUser } from "@/lib/admin-auth";
 import { getPublicLogoMarkUrl } from "@/lib/public-logo-url";
 import { getServerSession } from "@/lib/session";
+import { ActiveCookBar } from "@/components/ActiveCookBar";
 import { HeaderNav, type HeaderNavItem } from "@/components/HeaderNav";
 import { UserAccountMenu } from "@/components/UserAccountMenu";
 
@@ -12,12 +14,13 @@ export async function Header() {
   const session = await getServerSession();
   const logoSrc = getPublicLogoMarkUrl();
   const showAdmin = session?.user ? await isAdminSessionUser(session.user) : false;
-  const [myChannel, inProgressCount] = session?.user
+  const [myChannel, inProgressCount, activeCook] = session?.user
     ? await Promise.all([
         getChannelProfileForUser(session.user.id),
         countOngoingPreparationsForUser(),
+        getActiveCookForUser(),
       ])
-    : [null, 0];
+    : [null, 0, null];
 
   const navItems: HeaderNavItem[] = [
     { href: "/discover", label: "Discover", icon: "discover" },
@@ -77,6 +80,8 @@ export async function Header() {
         </div>
 
         <HeaderNav items={navItems} variant="chips" />
+
+        {activeCook ? <ActiveCookBar cook={activeCook} /> : null}
       </div>
     </header>
   );

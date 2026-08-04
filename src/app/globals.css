@@ -226,22 +226,8 @@
     text-decoration: none !important;
   }
 
-  /* Plan-only, deliberately not on .print-sheet: the recipe view shares that
-     class, and rules like break-inside would strand its long ingredient list on
-     a page of its own. */
-
-  /* A day of the plan, and a day's worth of the shopping list, are short enough
-     to be worth keeping whole. */
-  .plan-print section,
-  .plan-print > div > div {
-    break-inside: avoid;
-  }
-
-  /* Form controls print as empty boxes. The planner hides these and prints a
-     plain-text line in their place. */
-  .plan-print select,
-  .plan-print input[type="time"],
-  .plan-print input[type="text"] {
-    display: none !important;
-  }
+  /* The meal plan prints from its own sheet (PlanPrintSheet) rather than
+     through this stylesheet — the screen version is built out of controls, and
+     hiding those just leaves empty cards. The sheet carries its own layout, so
+     there are no .plan-print rules left to write. */
 }

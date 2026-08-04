@@ -211,16 +211,7 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
                           </button>
                         )}
 
-                        {/* On paper the two controls below are empty boxes, so
-                            print their values as a plain line instead. */}
-                        <p className="hidden text-xs text-ink-soft print:block">
-                          Eat at {slot.mealTime ?? DEFAULT_MEAL_TIMES[meal]}
-                          {slot.timeAvailableMinutes
-                            ? ` · ${slot.timeAvailableMinutes} min to cook`
-                            : ""}
-                        </p>
-
-                        <div className="flex gap-2 print:hidden">
+                        <div className="flex gap-2">
                           <label
                             className="min-w-0 flex-1 text-[0.7rem] font-medium uppercase tracking-wide text-ink-muted"
                             title="How long you've got to cook this meal. Only used to pick recipes that fit — it doesn't affect reminders."

@@ -1,8 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formFieldDense } from "@/lib/form-styles";
-import { factorForTargetAmount, scaleIngredients, type RecipeIngredient } from "@/lib/scale-amount";
+import {
+  factorForTargetAmount,
+  parseNumber,
+  scaleIngredients,
+  type RecipeIngredient,
+} from "@/lib/scale-amount";
+import { convertIngredient, needsLookedUpDensity, type MeasureSystem } from "@/lib/unit-convert";
+import { estimateDensitiesAction } from "@/actions/density";
+import { normalizeIngredientName } from "@/lib/normalize-ingredient";
 import { substitutionsFor } from "@/lib/substitutions";
 
 /** Offered when a recipe doesn't say how many it serves. */
@@ -21,17 +29,73 @@ const RATIOS = [0.5, 1, 2, 3];
 export function IngredientPanel({
   ingredients,
   servings,
+  writtenIn,
 }: {
   ingredients: RecipeIngredient[];
   servings: number | null;
+  /** The system the recipe was written in, so the toggle knows what "as written" is. */
+  writtenIn: MeasureSystem;
 }) {
   const [factor, setFactor] = useState(1);
   const [byIngredient, setByIngredient] = useState(false);
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
   const [target, setTarget] = useState("");
   const [openSwap, setOpenSwap] = useState<number | null>(null);
+  /** Null while showing the recipe's own units. */
+  const [showIn, setShowIn] = useState<MeasureSystem | null>(null);
+  /** Densities fetched for ingredients the curated table doesn't carry. */
+  const [lookedUp, setLookedUp] = useState<Map<string, { grams: number; liquid: boolean }>>(
+    () => new Map(),
+  );
+  const [lookingUp, setLookingUp] = useState(false);
 
-  const scaled = useMemo(() => scaleIngredients(ingredients, factor), [ingredients, factor]);
+  useEffect(() => {
+    if (!showIn) return;
+    const unknown = ingredients
+      .map((i) => i.name)
+      .filter((name) => name && needsLookedUpDensity(name))
+      .filter((name) => !lookedUp.has(normalizeIngredientName(name)));
+    if (unknown.length === 0) return;
+
+    let cancelled = false;
+    // State only ever changes in the async callback, never synchronously in the
+    // effect body (react-hooks/set-state-in-effect).
+    void Promise.resolve()
+      .then(() => {
+        if (!cancelled) setLookingUp(true);
+        return estimateDensitiesAction(unknown);
+      })
+      .then((res) => {
+        if (cancelled) return;
+        setLookingUp(false);
+        if (res.densities.length === 0) return;
+        setLookedUp((prev) => {
+          const next = new Map(prev);
+          for (const d of res.densities) {
+            next.set(d.normalizedName, { grams: d.gramsPerCup, liquid: d.liquid });
+          }
+          return next;
+        });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [showIn, ingredients, lookedUp]);
+
+  const scaled = useMemo(() => {
+    const lines = scaleIngredients(ingredients, factor);
+    if (!showIn) return lines.map((l) => ({ ...l, converted: false }));
+    // Conversion happens per ingredient and after scaling, so an amount that
+    // can't be read is simply left alone by both.
+    return lines.map((line) => {
+      const next = convertIngredient(line, showIn, parseNumber(line.amount ?? ""), lookedUp);
+      if (!next) return { ...line, converted: false };
+      return { ...line, amount: next.amount, unit: next.unit, converted: true };
+    });
+  }, [ingredients, factor, showIn, lookedUp]);
+
+  const otherSystem: MeasureSystem = writtenIn === "metric" ? "us" : "metric";
+  const unconvertible = showIn ? scaled.filter((l) => !l.converted && l.unit).length : 0;
   const unreadable = scaled.filter((i) => i.needsEye).length;
 
   // Only lines with an amount worth measuring against can anchor the scale.
@@ -109,6 +173,18 @@ export function IngredientPanel({
           </button>
         ) : null}
 
+        <button
+          type="button"
+          onClick={() => setShowIn(showIn ? null : otherSystem)}
+          className="text-xs font-medium text-ink-muted underline-offset-2 transition hover:text-terracotta-strong hover:underline"
+        >
+          {showIn
+            ? "Back to the recipe's units"
+            : otherSystem === "metric"
+              ? "Show in grams and ml"
+              : "Show in cups and spoons"}
+        </button>
+
         {factor !== 1 ? (
           <button
             type="button"
@@ -159,6 +235,18 @@ export function IngredientPanel({
             <span className="pb-2 text-sm text-ink-muted">{pinned.unit}</span>
           ) : null}
         </div>
+      ) : null}
+
+      {showIn && lookingUp ? (
+        <p className="mt-3 text-xs text-ink-muted print:hidden">Looking up a few measurements…</p>
+      ) : null}
+
+      {showIn && unconvertible > 0 ? (
+        <p className="mt-3 rounded-xl border border-sand-strong bg-sunken/60 px-3 py-2 text-xs text-ink-soft print:hidden">
+          {unconvertible === 1 ? "One ingredient is" : `${unconvertible} ingredients are`} shown as
+          written — converting a volume to a weight needs to know what the ingredient is, and this
+          one isn&apos;t in the table.
+        </p>
       ) : null}
 
       {factor !== 1 && unreadable > 0 ? (

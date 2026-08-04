@@ -179,6 +179,62 @@ export async function listMyMealPlans(): Promise<PlanListRow[]> {
   }));
 }
 
+export type PlanPickerOption = {
+  id: string;
+  title: string;
+  startDate: string;
+  endDate: string;
+  /** Slots that already hold a recipe, so the picker can warn before replacing one. */
+  taken: { date: string; meal: MealType; recipeTitle: string | null }[];
+};
+
+/**
+ * Every plan a recipe could be dropped into, with what's already in each slot.
+ *
+ * Occupancy comes back with the plans rather than on selection: `upsertMealSlot`
+ * replaces whatever is in a slot, and finding that out afterwards is how someone
+ * loses Thursday's dinner without noticing.
+ */
+export async function listPlansForRecipePicker(): Promise<PlanPickerOption[]> {
+  const session = await getServerSession();
+  if (!session?.user?.id) return [];
+
+  const plans = await db
+    .select({
+      id: mealPlan.id,
+      title: mealPlan.title,
+      startDate: mealPlan.startDate,
+      endDate: mealPlan.endDate,
+    })
+    .from(mealPlan)
+    .where(eq(mealPlan.userId, session.user.id))
+    .orderBy(asc(mealPlan.startDate));
+  if (plans.length === 0) return [];
+
+  const slots = await db
+    .select({
+      planId: mealSlot.planId,
+      date: mealSlot.date,
+      meal: mealSlot.meal,
+      recipeTitle: recipe.title,
+    })
+    .from(mealSlot)
+    .leftJoin(recipe, eq(mealSlot.recipeId, recipe.id))
+    .where(
+      and(
+        inArray(mealSlot.planId, plans.map((p) => p.id)),
+        isNotNull(mealSlot.recipeId),
+      ),
+    );
+
+  return plans.map((p) => ({
+    ...p,
+    taken: slots
+      .filter((s) => s.planId === p.id)
+      .map((s) => ({ date: s.date, meal: s.meal as MealType, recipeTitle: s.recipeTitle })),
+  }));
+}
+
 export async function getMealPlanForOwner(planId: string): Promise<PlanDetail | null> {
   const guard = await requirePlan(planId);
   if (!guard.ok) return null;

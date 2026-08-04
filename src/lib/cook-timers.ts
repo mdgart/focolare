@@ -156,13 +156,23 @@ export function remainingMs(
 }
 
 /**
- * Would moving on from this step throw away a timer?
+ * Would moving on from this step throw away a timer that's still running?
  *
- * Used to ask first. Only the step being left matters: a timer on another step
- * isn't affected by finishing this one, and warning about it would train people
- * to dismiss the warning. A paused timer counts — it's still something the cook
+ * Used to ask first — and only when there's something to lose. A timer that has
+ * reached zero has already done its job, so asking about it is pure noise at
+ * exactly the moment someone is trying to get on with the next step.
+ *
+ * Only the step being left matters: a timer on another step isn't affected by
+ * finishing this one, and warning about it would train people to dismiss the
+ * warning. A paused timer with time left does count — it's something the cook
  * set up and expects to come back to.
  */
-export function advanceWouldStopTimer(armed: readonly ArmedTimer[], stepIndex: number): boolean {
-  return timerFor(armed, stepIndex) !== null;
+export function advanceWouldStopTimer(
+  armed: readonly ArmedTimer[],
+  stepIndex: number,
+  durationSeconds: number,
+  nowMs: number,
+): boolean {
+  if (!timerFor(armed, stepIndex)) return false;
+  return remainingMs(armed, stepIndex, durationSeconds, nowMs) > 0;
 }

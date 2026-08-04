@@ -516,6 +516,21 @@ export const pushSubscription = pgTable(
   (t) => [index("push_subscription_user_idx").on(t.userId)],
 );
 
+/**
+ * Densities for ingredients `src/lib/unit-convert.ts` doesn't have by hand.
+ *
+ * Cached rather than asked each time: the grams in a cup of gochujang is the
+ * same for every user, and it's a slow, paid question to ask twice.
+ */
+export const ingredientDensity = pgTable("ingredient_density", {
+  normalizedName: text("normalized_name").primaryKey(),
+  gramsPerCup: integer("grams_per_cup").notNull(),
+  liquid: boolean("liquid").notNull().default(false),
+  /** 'ai' for an estimate, so the UI can say so. */
+  source: text("source").notNull().default("ai"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /* ---------- Meal planner ---------- */
 
 export const mealPlan = pgTable(

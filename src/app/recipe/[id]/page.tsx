@@ -11,6 +11,7 @@ import { humanDurationSeconds } from "@/lib/format-duration";
 import { effectiveStepSeconds, totalRecipeSeconds } from "@/lib/infer-duration";
 import { ingredientSystemTitle } from "@/lib/ingredient-measure";
 import { MEAL_TAG_LABEL, normalizeMealTags } from "@/lib/meal-tags";
+import { AddToPlanButton } from "./add-to-plan-button";
 import { IngredientPanel } from "./ingredient-panel";
 import { RecipePrintButton } from "@/components/RecipePrintButton";
 import { CreatorProfileBar } from "@/components/CreatorProfileBar";
@@ -114,6 +115,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
                   isLoggedIn={Boolean(user)}
                   signInHref={`/sign-in?next=/recipe/${id}`}
                 />
+                {user ? <AddToPlanButton recipeId={id} /> : null}
                 <RecipePrintButton />
                 {canDeleteRecipe ? (
                   <>
@@ -274,7 +276,11 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               Tick them off as you gather — boxes print empty so you can check them by hand.
             </p>
 
-            <IngredientPanel ingredients={r.ingredients ?? []} servings={r.servings ?? null} />
+            <IngredientPanel
+              ingredients={r.ingredients ?? []}
+              servings={r.servings ?? null}
+              writtenIn={r.ingredientMeasureSystem ?? "metric"}
+            />
           </section>
 
           {/* Steps */}
