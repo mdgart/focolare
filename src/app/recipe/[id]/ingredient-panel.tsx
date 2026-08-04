@@ -9,6 +9,7 @@ import {
   type RecipeIngredient,
 } from "@/lib/scale-amount";
 import { convertIngredient, needsLookedUpDensity, type MeasureSystem } from "@/lib/unit-convert";
+import { SubstitutionsModal } from "./substitutions-modal";
 import { estimateDensitiesAction } from "@/actions/density";
 import { normalizeIngredientName } from "@/lib/normalize-ingredient";
 import { substitutionsFor } from "@/lib/substitutions";
@@ -30,9 +31,11 @@ export function IngredientPanel({
   ingredients,
   servings,
   writtenIn,
+  recipeTitle,
 }: {
   ingredients: RecipeIngredient[];
   servings: number | null;
+  recipeTitle: string;
   /** The system the recipe was written in, so the toggle knows what "as written" is. */
   writtenIn: MeasureSystem;
 }) {
@@ -41,6 +44,7 @@ export function IngredientPanel({
   const [pinnedIndex, setPinnedIndex] = useState<number | null>(null);
   const [target, setTarget] = useState("");
   const [openSwap, setOpenSwap] = useState<number | null>(null);
+  const [askingSubs, setAskingSubs] = useState(false);
   /** Null while showing the recipe's own units. */
   const [showIn, setShowIn] = useState<MeasureSystem | null>(null);
   /** Densities fetched for ingredients the curated table doesn't carry. */
@@ -172,6 +176,14 @@ export function IngredientPanel({
             {byIngredient ? "Hide" : "Scale to an amount I have"}
           </button>
         ) : null}
+
+        <button
+          type="button"
+          onClick={() => setAskingSubs(true)}
+          className="text-xs font-medium text-ink-muted underline-offset-2 transition hover:text-terracotta-strong hover:underline"
+        >
+          Missing something?
+        </button>
 
         <button
           type="button"
@@ -333,6 +345,14 @@ export function IngredientPanel({
           </ul>
         )}
       </div>
+
+      {askingSubs ? (
+        <SubstitutionsModal
+          ingredientNames={ingredients.map((i) => i.name).filter(Boolean)}
+          recipeTitle={recipeTitle}
+          onClose={() => setAskingSubs(false)}
+        />
+      ) : null}
     </>
   );
 }

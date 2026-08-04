@@ -21,6 +21,7 @@ import {
 } from "@/db/schema";
 import { buildCoveredSet } from "@/lib/grocery";
 import { rebuildGroceryList } from "@/lib/grocery-sync";
+import { rescheduleShoppingRemindersForPlan } from "@/lib/shopping-reminders";
 import { effectiveStepSeconds } from "@/lib/infer-duration";
 import { rescheduleMealReminderForSlot } from "@/lib/meal-reminders";
 import { MEAL_ORDER, type MealType } from "@/lib/meal-plan";
@@ -324,7 +325,10 @@ export async function fillPlanAction(
     filled += 1;
   }
 
-  if (filled > 0) await rebuildGroceryList(planId, session.user.id);
+  if (filled > 0) {
+    await rebuildGroceryList(planId, session.user.id);
+    await rescheduleShoppingRemindersForPlan(planId);
+  }
 
   revalidatePath(`/plan/${planId}`);
   return { filled };

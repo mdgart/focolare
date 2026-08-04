@@ -6,11 +6,16 @@ import { z } from "zod";
 import { db } from "@/db";
 import { user } from "@/db/schema";
 import { getServerSession } from "@/lib/session";
+import {
+  cancelShoppingRemindersForUser,
+  rescheduleShoppingRemindersForUser,
+} from "@/lib/shopping-reminders";
 
 const prefsSchema = z.object({
   phoneE164: z.string().max(32).optional().nullable(),
   notifyCookTimerEmail: z.boolean(),
   notifyCookTimerSms: z.boolean(),
+  notifyShoppingReminder: z.boolean().optional(),
 });
 
 export async function updateCookNotificationPrefsAction(raw: unknown) {
@@ -32,9 +37,20 @@ export async function updateCookNotificationPrefsAction(raw: unknown) {
       phoneE164: phone,
       notifyCookTimerEmail: parsed.data.notifyCookTimerEmail,
       notifyCookTimerSms: parsed.data.notifyCookTimerSms,
+      ...(parsed.data.notifyShoppingReminder === undefined
+        ? {}
+        : { notifyShoppingReminder: parsed.data.notifyShoppingReminder }),
       updatedAt: new Date(),
     })
     .where(eq(user.id, session.user.id));
+
+  // Turning it on has to schedule what's already planned; turning it off has to
+  // clear what's pending, or a reminder arrives after it was switched off.
+  if (parsed.data.notifyShoppingReminder === true) {
+    await rescheduleShoppingRemindersForUser(session.user.id);
+  } else if (parsed.data.notifyShoppingReminder === false) {
+    await cancelShoppingRemindersForUser(session.user.id);
+  }
 
   return { ok: true as const };
 }

@@ -22,12 +22,22 @@ export async function Header() {
       ])
     : [null, 0, null];
 
+  // Personal shelves used to live only in the account menu, two clicks from
+  // anywhere. They're the things people come back for, so they're in the nav.
   const navItems: HeaderNavItem[] = [
     { href: "/discover", label: "Discover", icon: "discover" },
     ...(session?.user
-      ? [{ href: "/plan", label: "Planner", icon: "planner" as const }]
+      ? [
+          { href: "/plan", label: "Planner", icon: "planner" as const },
+          ...(myChannel
+            ? [{ href: `/c/${myChannel.slug}`, label: "My recipes", icon: "recipes" as const }]
+            : []),
+          { href: "/saved", label: "Saved", icon: "saved" as const },
+        ]
       : []),
-    { href: "/create/recipe", label: "Create", icon: "create" },
+    // Filled rather than another quiet pill: creating is the thing the nav is
+    // for, and it read as one option among several.
+    { href: "/create/recipe", label: "Create", icon: "create", primary: true },
     ...(showAdmin
       ? [{ href: "/admin/taxonomy", label: "Admin", icon: "admin" as const, accent: true }]
       : []),

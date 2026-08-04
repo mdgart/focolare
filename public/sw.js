@@ -25,13 +25,13 @@ self.addEventListener("push", (event) => {
 
   // Meal reminders carry their own copy and destination — there is no cook
   // session or step to describe.
-  if (payload.type === "meal_reminder") {
+  if (payload.type === "meal_reminder" || payload.type === "shopping_reminder") {
     event.waitUntil(
-      self.registration.showNotification(payload.title || "Time to start cooking", {
+      self.registration.showNotification(payload.title || "Focolare", {
         body: payload.body || "",
         icon: "/logo.png",
         badge: "/logo.png",
-        tag: payload.idempotencyKey || payload.mealSlotId || "focolare-meal",
+        tag: payload.idempotencyKey || payload.mealSlotId || payload.planId || "focolare-meal",
         renotify: true,
         requireInteraction: true,
         data: { url: payload.url || "/plan" },

@@ -4,7 +4,7 @@ import { db } from "@/db";
 import { cookSession, pushSubscription, scheduledStepEvent, user } from "@/db/schema";
 import { cookNotifyChannelsAvailable, sendCookTimerEmail, sendCookTimerSms } from "@/lib/cook-timer-notify";
 import { PLAN_LIMITS, type Plan } from "@/lib/entitlements";
-import { isMealReminderPayload, type AnyPushPayload } from "@/lib/notifications-types";
+import { isCookTimerPayload, type AnyPushPayload } from "@/lib/notifications-types";
 
 function configureWebPush() {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
@@ -78,8 +78,9 @@ export async function dispatchDuePushEvents(): Promise<{
       .where(eq(pushSubscription.userId, recipientUserId));
 
     // Email and SMS renderers are written against the cook payload's fields, so
-    // meal reminders go out over web push only until those are generalised too.
-    const webPushOnly = isMealReminderPayload(payload);
+    // meal and shopping reminders go out over web push only until those are
+    // generalised too. Narrowed rather than flagged, so the compiler enforces it.
+    const cookPayload = isCookTimerPayload(payload) ? payload : null;
 
     const channels = cookNotifyChannelsAvailable();
     let delivered = false;
@@ -104,10 +105,10 @@ export async function dispatchDuePushEvents(): Promise<{
       }
     }
 
-    if (!webPushOnly && u?.notifyCookTimerEmail && u.email && channels.smtp) {
+    if (cookPayload && u?.notifyCookTimerEmail && u.email && channels.smtp) {
       anyChannelAttempted = true;
       try {
-        if (await sendCookTimerEmail(u.email, payload)) delivered = true;
+        if (await sendCookTimerEmail(u.email, cookPayload)) delivered = true;
       } catch {
         /* SMTP send failed */
       }
@@ -115,10 +116,10 @@ export async function dispatchDuePushEvents(): Promise<{
 
     // SMS costs real money per message, so it is a paid-plan channel.
     const smsEntitled = PLAN_LIMITS[(u?.plan as Plan) ?? "free"].smsNotifications;
-    if (!webPushOnly && smsEntitled && u?.notifyCookTimerSms && u.phoneE164?.trim() && channels.twilio) {
+    if (cookPayload && smsEntitled && u?.notifyCookTimerSms && u.phoneE164?.trim() && channels.twilio) {
       anyChannelAttempted = true;
       try {
-        if (await sendCookTimerSms(u.phoneE164.trim(), payload)) delivered = true;
+        if (await sendCookTimerSms(u.phoneE164.trim(), cookPayload)) delivered = true;
       } catch {
         /* Twilio error */
       }

@@ -10,6 +10,7 @@ type Props = {
   initialPhone: string | null;
   initialNotifyEmail: boolean;
   initialNotifySms: boolean;
+  initialNotifyShopping?: boolean;
   smtpConfigured: boolean;
   twilioConfigured: boolean;
   /** SMS delivery is a paid-plan channel; free accounts see it locked. */
@@ -21,6 +22,7 @@ export function NotificationSettingsForm(props: Props) {
   const [phone, setPhone] = useState(props.initialPhone ?? "");
   const [notifyEmail, setNotifyEmail] = useState(props.initialNotifyEmail);
   const [notifySms, setNotifySms] = useState(props.initialNotifySms);
+  const [notifyShopping, setNotifyShopping] = useState(props.initialNotifyShopping ?? false);
   const [pending, setPending] = useState(false);
 
   async function onSubmit(e: FormEvent) {
@@ -30,6 +32,7 @@ export function NotificationSettingsForm(props: Props) {
       phoneE164: phone.trim() || null,
       notifyCookTimerEmail: notifyEmail,
       notifyCookTimerSms: notifySms,
+      notifyShoppingReminder: notifyShopping,
     });
     setPending(false);
     if ("error" in res) {
@@ -47,6 +50,24 @@ export function NotificationSettingsForm(props: Props) {
           When a step timer ends, we can notify you by web push (browser), email, or SMS. Enable the channels you want
           below; email and SMS only send if the server is configured (SMTP / Twilio).
         </p>
+      </div>
+
+      <div className="border-t border-neutral-200 pt-4">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            checked={notifyShopping}
+            onChange={(e) => setNotifyShopping(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-neutral-300 text-amber-700"
+          />
+          <span>
+            <span className="font-medium text-neutral-900">Shopping reminder</span>
+            <span className="block text-sm text-neutral-600">
+              The evening before a planned day, a note listing what you still need to buy for it.
+              Only for days that have recipes and something left to buy — web push only for now.
+            </span>
+          </span>
+        </label>
       </div>
 
       <label className="flex cursor-pointer items-start gap-3">
