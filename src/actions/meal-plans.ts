@@ -63,6 +63,9 @@ export type PlanSlotRow = {
   note: string | null;
   recipeId: string | null;
   recipeTitle: string | null;
+  /** With channelSlug, gives the slot a readable recipe link. */
+  recipeSlug: string | null;
+  channelSlug: string | null;
   recipeCoverUrl: string | null;
 };
 
@@ -253,10 +256,13 @@ export async function getMealPlanForOwner(planId: string): Promise<PlanDetail | 
       note: mealSlot.note,
       recipeId: mealSlot.recipeId,
       recipeTitle: recipe.title,
+      recipeSlug: recipe.slug,
+      channelSlug: channel.slug,
       recipeCoverUrl: mediaAsset.publicUrl,
     })
     .from(mealSlot)
     .leftJoin(recipe, eq(mealSlot.recipeId, recipe.id))
+    .leftJoin(channel, eq(recipe.channelId, channel.id))
     .leftJoin(mediaAsset, eq(recipe.coverMediaId, mediaAsset.id))
     .where(eq(mealSlot.planId, planId))
     .orderBy(asc(mealSlot.date));
@@ -403,6 +409,8 @@ export type SharedPlanSlot = {
   /** Null when the recipe isn't publicly viewable — the title is withheld too. */
   recipeId: string | null;
   recipeTitle: string | null;
+  recipeSlug: string | null;
+  channelSlug: string | null;
   recipeCoverUrl: string | null;
   hasPrivateRecipe: boolean;
 };
@@ -434,6 +442,8 @@ export async function getSharedPlan(slug: string): Promise<{
       mealTime: mealSlot.mealTime,
       recipeId: mealSlot.recipeId,
       recipeTitle: recipe.title,
+      recipeSlug: recipe.slug,
+      channelSlug: channel.slug,
       recipeCoverUrl: mediaAsset.publicUrl,
       // Same predicate as listPublishedRecipes, evaluated per row.
       isPublic: notExists(
@@ -476,6 +486,8 @@ export async function getSharedPlan(slug: string): Promise<{
         mealTime: s.mealTime,
         recipeId: viewable ? s.recipeId : null,
         recipeTitle: viewable ? s.recipeTitle : null,
+        recipeSlug: viewable ? s.recipeSlug : null,
+        channelSlug: viewable ? s.channelSlug : null,
         recipeCoverUrl: viewable ? s.recipeCoverUrl : null,
         hasPrivateRecipe: Boolean(s.recipeId) && !viewable,
       };

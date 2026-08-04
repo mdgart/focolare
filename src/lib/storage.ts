@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { put } from "@vercel/blob";
 import { nanoid } from "nanoid";
+import { appBaseUrl } from "@/lib/app-url";
 
 /**
  * Where uploaded media lives.
@@ -29,14 +30,6 @@ function localUploadDir(): string {
   return path.isAbsolute(rel) ? rel : path.join(process.cwd(), rel);
 }
 
-function appBaseUrl(): string {
-  return (
-    process.env.NEXT_PUBLIC_APP_URL?.trim() ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL
-      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-      : "http://localhost:3000")
-  );
-}
 
 /** Persist bytes and return where they ended up. */
 export async function storeFile(opts: {

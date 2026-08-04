@@ -51,6 +51,7 @@ export default async function ChannelPage({ params }: { params: Promise<{ slug: 
             <RecipeCard
               key={r.id}
               id={r.id}
+              slug={r.slug}
               title={r.title}
               description={r.description}
               creatorName={ch.title}

@@ -12,6 +12,7 @@ import {
 } from "@/actions/meal-plans";
 import { fillPlanAction } from "@/actions/suggest";
 import { formFieldDense } from "@/lib/form-styles";
+import { recipeHref } from "@/lib/recipe-url";
 import {
   DEFAULT_MEAL_TIMES,
   enumerateDates,
@@ -38,6 +39,7 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
   const [showingIngredients, setShowingIngredients] = useState<{
     date: string;
     meal: MealType;
+    recipeHref: string;
   } | null>(null);
   const [shareSlug, setShareSlug] = useState(plan.shareSlug);
 
@@ -150,6 +152,14 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
               {MEAL_ORDER.map((meal) => {
                 const slot = slotFor(date, meal);
                 const planned = Boolean(slot);
+                const slotRecipeHref =
+                  slot && slot.recipeId
+                    ? recipeHref({
+                        recipeId: slot.recipeId,
+                        channelSlug: slot.channelSlug,
+                        recipeSlug: slot.recipeSlug,
+                      })
+                    : "";
                 return (
                   <div
                     key={meal}
@@ -178,7 +188,7 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
                           <>
                             <div className="flex items-start justify-between gap-2">
                               <Link
-                                href={`/recipe/${slot.recipeId}`}
+                                href={slotRecipeHref}
                                 className="min-w-0 text-sm font-medium text-ink hover:text-terracotta-strong"
                               >
                                 {slot.recipeTitle}
@@ -195,7 +205,13 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
                             </div>
                             <button
                               type="button"
-                              onClick={() => setShowingIngredients({ date, meal })}
+                              onClick={() =>
+                                setShowingIngredients({
+                                  date,
+                                  meal,
+                                  recipeHref: slotRecipeHref,
+                                })
+                              }
                               className="rounded-lg border border-sand-strong px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:border-terracotta hover:text-terracotta-strong print:hidden"
                             >
                               Ingredients
@@ -277,6 +293,7 @@ export function PlannerClient({ plan, origin }: { plan: PlanDetail; origin: stri
           planId={plan.id}
           date={showingIngredients.date}
           meal={showingIngredients.meal}
+          recipeHref={showingIngredients.recipeHref}
           onClose={() => setShowingIngredients(null)}
         />
       ) : null}

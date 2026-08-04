@@ -99,6 +99,7 @@ export default async function HomePage({
               <RecipeCard
                 key={recipe.id}
                 id={recipe.id}
+                slug={recipe.slug}
                 title={recipe.title}
                 description={recipe.description}
                 creatorName={recipe.channelTitle}

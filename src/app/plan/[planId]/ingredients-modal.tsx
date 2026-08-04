@@ -17,11 +17,14 @@ export function IngredientsModal({
   planId,
   date,
   meal,
+  recipeHref,
   onClose,
 }: {
   planId: string;
   date: string;
   meal: MealType;
+  /** The planner already knows the recipe's address; passing it keeps the title readable-linked. */
+  recipeHref: string;
   onClose: () => void;
 }) {
   const [data, setData] = useState<MealIngredients | null>(null);
@@ -68,7 +71,7 @@ export function IngredientsModal({
             </p>
             <h2 className="mt-1 text-xl">
               {data ? (
-                <Link href={`/recipe/${data.recipeId}`} className="hover:text-terracotta-strong">
+                <Link href={recipeHref} className="hover:text-terracotta-strong">
                   {data.recipeTitle}
                 </Link>
               ) : (

@@ -14,6 +14,7 @@ export async function listRecipesForReview() {
   return db
     .select({
       id: recipe.id,
+      slug: recipe.slug,
       title: recipe.title,
       description: recipe.description,
       moderationStatus: recipe.moderationStatus,

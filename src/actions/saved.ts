@@ -89,6 +89,7 @@ export async function listSavedRecipes() {
   return db
     .select({
       id: recipe.id,
+      slug: recipe.slug,
       title: recipe.title,
       description: recipe.description,
       addedAt: collectionRecipe.addedAt,

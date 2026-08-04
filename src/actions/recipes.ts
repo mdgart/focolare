@@ -11,6 +11,7 @@ import { getOrCreateChannelForUser } from "@/lib/ensure-channel";
 import { normalizeLanguage } from "@/lib/languages";
 import { normalizeMealTags } from "@/lib/meal-tags";
 import { moderateContent, recipeToModerationText } from "@/lib/moderation";
+import { recipePath } from "@/lib/recipe-url";
 import { slugify } from "@/lib/slug";
 import { getServerSession } from "@/lib/session";
 import { nanoid } from "nanoid";
@@ -106,6 +107,7 @@ export async function listPublishedRecipes(opts?: {
 
 export type UserRecipeRow = {
   id: string;
+  slug: string;
   title: string;
   visibility: "public" | "private";
   publishedAt: Date | null;
@@ -118,6 +120,7 @@ export async function listRecipesForUser(userId: string): Promise<UserRecipeRow[
   return db
     .select({
       id: recipe.id,
+      slug: recipe.slug,
       title: recipe.title,
       visibility: recipe.visibility,
       publishedAt: recipe.publishedAt,
@@ -136,7 +139,7 @@ async function assertRecipeOwner(
   recipeId: string,
   sessionUser: { id: string; email?: string | null },
 ): Promise<
-  | { ok: true; recipeRow: typeof recipe.$inferSelect; channelId: string }
+  | { ok: true; recipeRow: typeof recipe.$inferSelect; channelId: string; channelSlug: string }
   | { error: string }
 > {
   const [row] = await db
@@ -144,6 +147,7 @@ async function assertRecipeOwner(
       recipeRow: recipe,
       ownerUserId: channel.ownerUserId,
       channelId: channel.id,
+      channelSlug: channel.slug,
     })
     .from(recipe)
     .innerJoin(channel, eq(channel.id, recipe.channelId))
@@ -152,7 +156,12 @@ async function assertRecipeOwner(
   if (!row) return { error: "Not found" };
   const isAdmin = await isAdminSessionUser(sessionUser);
   if (row.ownerUserId !== sessionUser.id && !isAdmin) return { error: "Forbidden" };
-  return { ok: true as const, recipeRow: row.recipeRow, channelId: row.channelId };
+  return {
+    ok: true as const,
+    recipeRow: row.recipeRow,
+    channelId: row.channelId,
+    channelSlug: row.channelSlug,
+  };
 }
 
 async function verifyMediaOwnedByUser(userId: string, mediaIds: (string | null | undefined)[]): Promise<boolean> {
@@ -257,7 +266,7 @@ export async function createRecipeAction(form: {
     offsetFromPrevious: number;
     imageMediaId?: string | null;
   }[];
-}): Promise<{ recipeId: string } | { error: string }> {
+}): Promise<{ recipeId: string; path: string } | { error: string }> {
   const session = await getServerSession();
   if (!session?.user?.id) return { error: "Unauthorized" };
   if (!form.title.trim()) return { error: "Title required" };
@@ -308,6 +317,7 @@ export async function createRecipeAction(form: {
   const ch = await getOrCreateChannelForUser({
     userId: session.user.id,
     displayName: session.user.name ?? "Creator",
+    email: session.user.email,
   });
 
   let slug = slugify(form.title);
@@ -346,7 +356,7 @@ export async function createRecipeAction(form: {
         })),
       );
       await replaceRecipeTags(r.id, form.tags);
-      return { recipeId: r.id };
+      return { recipeId: r.id, path: recipePath(ch.slug, r.slug) };
     } catch {
       slug = `${slugify(form.title)}-${nanoid(4).toLowerCase()}`;
     }
@@ -378,7 +388,7 @@ export async function updateRecipeAction(
       imageMediaId?: string | null;
     }[];
   },
-): Promise<{ recipeId: string } | { error: string }> {
+): Promise<{ recipeId: string; path: string } | { error: string }> {
   const session = await getServerSession();
   if (!session?.user?.id) return { error: "Unauthorized" };
   if (!form.title.trim()) return { error: "Title required" };
@@ -481,12 +491,48 @@ export async function updateRecipeAction(
   );
   await replaceRecipeTags(recipeId, form.tags);
 
-  return { recipeId };
+  // The slug follows the title, so the path here can differ from the one the
+  // editor was opened at.
+  return { recipeId, path: recipePath(owned.channelSlug, slug) };
 }
 
 export type RecipeStepWithImage = typeof recipeStep.$inferSelect & { imagePublicUrl: string | null };
 
 export type RecipeTagRow = { slug: string; label: string };
+
+/**
+ * Resolve /c/<username>/recipe/<slug> to a recipe id. Slugs are unique within a
+ * channel, so the pair is enough; nothing here decides who may see it, which is
+ * still canViewRecipe's job.
+ */
+export async function getRecipeIdBySlug(
+  channelSlug: string,
+  recipeSlug: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ id: recipe.id })
+    .from(recipe)
+    .innerJoin(channel, eq(recipe.channelId, channel.id))
+    .where(
+      and(
+        eq(channel.slug, channelSlug.trim().toLowerCase()),
+        eq(recipe.slug, recipeSlug.trim().toLowerCase()),
+      ),
+    )
+    .limit(1);
+  return row?.id ?? null;
+}
+
+/** The readable path for a recipe id — for redirects and post-save navigation. */
+export async function getRecipePath(recipeId: string): Promise<string | null> {
+  const [row] = await db
+    .select({ channelSlug: channel.slug, recipeSlug: recipe.slug })
+    .from(recipe)
+    .innerJoin(channel, eq(recipe.channelId, channel.id))
+    .where(eq(recipe.id, recipeId))
+    .limit(1);
+  return row ? recipePath(row.channelSlug, row.recipeSlug) : null;
+}
 
 export async function getRecipeBundle(recipeId: string) {
   const [r] = await db.select().from(recipe).where(eq(recipe.id, recipeId)).limit(1);
@@ -562,7 +608,8 @@ export async function setRecipePublishedAction(
 
   revalidatePath("/");
   revalidatePath("/discover");
-  revalidatePath(`/recipe/${recipeId}`);
+  const path = await getRecipePath(recipeId);
+  if (path) revalidatePath(path);
   return { ok: true as const, published };
 }
 

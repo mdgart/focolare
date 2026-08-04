@@ -2,9 +2,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { CreatorLink } from "@/components/CreatorProfileBar";
 import { RecipeImagePlaceholder } from "@/components/RecipeImagePlaceholder";
+import { recipeHref } from "@/lib/recipe-url";
 
 interface RecipeCardProps {
   id: string;
+  /** With creatorSlug, makes the readable link; without it the card falls back to the id URL. */
+  slug?: string | null;
   title: string;
   description?: string | null;
   creatorName?: string | null;
@@ -24,6 +27,7 @@ interface RecipeCardProps {
 
 export function RecipeCard({
   id,
+  slug,
   title,
   description,
   creatorName,
@@ -50,7 +54,7 @@ export function RecipeCard({
 
   return (
     <article>
-      <Link href={`/recipe/${id}`} className="group block">
+      <Link href={recipeHref({ recipeId: id, channelSlug: creatorSlug, recipeSlug: slug })} className="group block">
         {imageUrl ? (
           <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-sunken ring-1 ring-black/5">
             <Image

@@ -324,7 +324,7 @@ export function CreateRecipeForm(props: {
       setFormError(res.error);
       return;
     }
-    router.push(`/recipe/${res.recipeId}`);
+    router.push(res.path);
   }
 
   const showGenerateCover = Boolean(props.aiEnabled) && !coverImage;

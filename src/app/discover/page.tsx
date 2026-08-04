@@ -252,6 +252,7 @@ export default async function DiscoverPage({
               <RecipeCard
                 key={recipe.id}
                 id={recipe.id}
+                slug={recipe.slug}
                 title={recipe.title}
                 description={recipe.description}
                 creatorName={recipe.channelTitle}

@@ -75,7 +75,7 @@ export function PreparationCard({ item }: { item: OngoingPreparation }) {
             </span>
           </div>
           <h2 className="mt-2 text-lg font-semibold text-stone-900">
-            <Link href={`/recipe/${item.recipeId}`} className="hover:text-amber-900 hover:underline">
+            <Link href={item.recipePath} className="hover:text-amber-900 hover:underline">
               {item.recipeTitle}
             </Link>
           </h2>

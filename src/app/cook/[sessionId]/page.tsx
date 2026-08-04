@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
-import { cookSession, mediaAsset, recipe, recipeStep, scheduledStepEvent } from "@/db/schema";
+import { channel, cookSession, mediaAsset, recipe, recipeStep, scheduledStepEvent } from "@/db/schema";
 import { getServerSession } from "@/lib/session";
 import { buildForwardTimeline, type StepInput } from "@/lib/cook-schedule";
 import { armedFromPending } from "@/lib/cook-timers";
+import { recipePath } from "@/lib/recipe-url";
 import { scaleIngredients } from "@/lib/scale-amount";
 import { CookSessionClient } from "./cook-session-client";
 
@@ -21,8 +22,14 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
     .limit(1);
   if (!cs) notFound();
 
-  const [r] = await db.select().from(recipe).where(eq(recipe.id, cs.recipeId)).limit(1);
-  if (!r) notFound();
+  const [row] = await db
+    .select({ recipe, channelSlug: channel.slug })
+    .from(recipe)
+    .innerJoin(channel, eq(channel.id, recipe.channelId))
+    .where(eq(recipe.id, cs.recipeId))
+    .limit(1);
+  if (!row) notFound();
+  const r = row.recipe;
 
   const steps = await db
     .select()
@@ -98,7 +105,7 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
       {/* A proper target rather than a line of underlined text: this gets
           pressed mid-cook, often one-handed and rarely with dry hands. */}
       <Link
-        href={`/recipe/${r.id}`}
+        href={recipePath(row.channelSlug, r.slug)}
         aria-label={`Back to ${r.title}`}
         className="inline-flex max-w-full items-center gap-2 rounded-full border border-stone-300 bg-white py-2 pl-3 pr-4 text-sm font-medium text-stone-700 shadow-sm transition hover:border-amber-300 hover:bg-amber-50/60 hover:text-amber-900"
       >

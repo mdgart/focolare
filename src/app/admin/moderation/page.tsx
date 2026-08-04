@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { listRecipesForReview } from "@/actions/moderation";
 import { isAiRecipeEnabled } from "@/lib/openai";
+import { recipeHref } from "@/lib/recipe-url";
 import { ReviewButtons } from "./review-buttons";
 
 export const metadata = { title: "Moderation · Focolare admin" };
@@ -63,7 +64,7 @@ export default async function ModerationPage() {
                     {r.moderationStatus}
                   </span>
                   <Link
-                    href={`/recipe/${r.id}`}
+                    href={recipeHref({ recipeId: r.id, channelSlug: r.channelSlug, recipeSlug: r.slug })}
                     className="font-display text-lg font-semibold text-ink hover:text-terracotta-strong"
                   >
                     {r.title}

@@ -2,10 +2,12 @@
 
 import { and, count, desc, eq, getTableColumns, isNotNull } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
+import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { channel, follow, mediaAsset, recipe, user } from "@/db/schema";
 import { getOrCreateChannelForUser } from "@/lib/ensure-channel";
 import { getServerSession } from "@/lib/session";
+import { validateUsername } from "@/lib/username";
 
 const channelAvatarMedia = alias(mediaAsset, "channel_avatar_media");
 
@@ -50,6 +52,7 @@ export async function updateChannelAvatarAction(
   const ch = await getOrCreateChannelForUser({
     userId: session.user.id,
     displayName: session.user.name ?? "Creator",
+    email: session.user.email,
   });
 
   await db
@@ -58,6 +61,53 @@ export async function updateChannelAvatarAction(
     .where(eq(channel.id, ch.id));
 
   return { ok: true as const };
+}
+
+/**
+ * Change the username in /c/<username>. The old address stops working — that's
+ * the deal with a name people can choose — so the form warns before saving.
+ */
+export async function updateChannelUsernameAction(
+  raw: string,
+): Promise<{ ok: true; username: string } | { error: string }> {
+  const session = await getServerSession();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  const parsed = validateUsername(raw);
+  if ("error" in parsed) return parsed;
+  const { username } = parsed;
+
+  const ch = await getOrCreateChannelForUser({
+    userId: session.user.id,
+    displayName: session.user.name ?? "Creator",
+    email: session.user.email,
+  });
+  if (ch.slug === username) return { ok: true as const, username };
+
+  const [clash] = await db
+    .select({ id: channel.id })
+    .from(channel)
+    .where(eq(channel.slug, username))
+    .limit(1);
+  if (clash) return { error: "That username is taken. Try another one." };
+
+  try {
+    await db
+      .update(channel)
+      .set({ slug: username, updatedAt: new Date() })
+      .where(eq(channel.id, ch.id));
+  } catch (err) {
+    // Lost the race between the check above and this write.
+    if (typeof err === "object" && err !== null && (err as { code?: string }).code === "23505") {
+      return { error: "That username is taken. Try another one." };
+    }
+    throw err;
+  }
+
+  revalidatePath("/account");
+  revalidatePath(`/c/${ch.slug}`);
+  revalidatePath(`/c/${username}`);
+  return { ok: true as const, username };
 }
 
 export async function getChannelAvatarPublicUrl(avatarMediaId: string | null): Promise<string | null> {
@@ -124,7 +174,13 @@ export async function unfollowChannelAction(channelId: string): Promise<{ ok: tr
 }
 
 export async function getChannelBySlug(slug: string, opts?: { viewerUserId: string | null }) {
-  const [ch] = await db.select().from(channel).where(eq(channel.slug, slug)).limit(1);
+  // Usernames are stored lowercase; a link typed or shared with capitals should
+  // still land rather than 404.
+  const [ch] = await db
+    .select()
+    .from(channel)
+    .where(eq(channel.slug, slug.trim().toLowerCase()))
+    .limit(1);
   if (!ch) return null;
   const viewer = opts?.viewerUserId ?? null;
   const isOwner = viewer !== null && viewer === ch.ownerUserId;
