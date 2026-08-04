@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:cron": "tsx scripts/dev-cron.ts",
     "build": "next build",
     "vercel-build": "npm run db:migrate && next build",
     "start": "next start",
