@@ -148,6 +148,7 @@ export default async function AccountPage() {
         initialPhone={profile?.phoneE164 ?? null}
         initialNotifyEmail={profile?.notifyCookTimerEmail ?? false}
         initialNotifySms={profile?.notifyCookTimerSms ?? false}
+        initialNotifyShopping={profile?.notifyShoppingReminder ?? false}
         smtpConfigured={channels.smtp}
         twilioConfigured={channels.twilio}
         smsEntitled={PLAN_LIMITS[(profile?.plan as Plan) ?? "free"].smsNotifications}

@@ -17,6 +17,10 @@ import {
 import { groceryListAsText } from "@/actions/grocery";
 import { rebuildGroceryList } from "@/lib/grocery-sync";
 import {
+  cancelShoppingRemindersForPlan,
+  rescheduleShoppingRemindersForPlan,
+} from "@/lib/shopping-reminders";
+import {
   cancelMealRemindersForPlan,
   cancelMealRemindersForSlots,
   rescheduleMealReminderForSlot,
@@ -352,6 +356,7 @@ export async function updateMealPlanAction(input: {
     await db.delete(mealSlot).where(inArray(mealSlot.id, ids));
     if (orphaned.some((s) => s.recipeId)) {
       await rebuildGroceryList(input.planId, guard.userId);
+      await rescheduleShoppingRemindersForPlan(input.planId);
     }
   }
 
@@ -365,6 +370,7 @@ export async function deleteMealPlanAction(planId: string): Promise<{ ok: true }
   if (!guard.ok) return { error: guard.error };
 
   await cancelMealRemindersForPlan(planId);
+  await cancelShoppingRemindersForPlan(planId);
   await db.delete(mealPlan).where(eq(mealPlan.id, planId));
 
   revalidatePath("/plan");
@@ -549,6 +555,7 @@ export async function upsertMealSlotAction(input: {
 
   if ((before?.recipeId ?? null) !== values.recipeId) {
     await rebuildGroceryList(input.planId, guard.userId);
+    await rescheduleShoppingRemindersForPlan(input.planId);
   }
 
   revalidatePath(`/plan/${input.planId}`);
@@ -578,6 +585,7 @@ export async function removeMealSlotAction(input: {
 
   if (removed.some((r) => r.recipeId)) {
     await rebuildGroceryList(input.planId, guard.userId);
+    await rescheduleShoppingRemindersForPlan(input.planId);
   }
 
   revalidatePath(`/plan/${input.planId}`);

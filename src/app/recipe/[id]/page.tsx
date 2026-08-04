@@ -280,6 +280,7 @@ export default async function RecipePage({ params }: { params: Promise<{ id: str
               ingredients={r.ingredients ?? []}
               servings={r.servings ?? null}
               writtenIn={r.ingredientMeasureSystem ?? "metric"}
+              recipeTitle={r.title}
             />
           </section>
 

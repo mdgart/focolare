@@ -30,6 +30,8 @@ export const user = pgTable("user", {
   phoneE164: text("phone_e164"),
   notifyCookTimerEmail: boolean("notify_cook_timer_email").notNull().default(false),
   notifyCookTimerSms: boolean("notify_cook_timer_sms").notNull().default(false),
+  /** The evening-before shopping nudge. Off unless asked for. */
+  notifyShoppingReminder: boolean("notify_shopping_reminder").notNull().default(false),
   plan: userPlanEnum("plan").notNull().default("free"),
   /** Set when an admin blocks the account; null means active. Their content is hidden, not deleted. */
   blockedAt: timestamp("blocked_at", { withTimezone: true }),
@@ -119,6 +121,8 @@ export const scheduledEventKindEnum = pgEnum("scheduled_event_kind", [
   "step_reminder",
   /** Time to start cooking for a planned meal; belongs to a meal_slot, not a cook session. */
   "meal_reminder",
+  /** The evening before: what to buy for tomorrow's planned meals. */
+  "shopping_reminder",
 ]);
 
 /** Which sitting a planned recipe is for. */
@@ -477,6 +481,8 @@ export const scheduledStepEvent = pgTable(
     }),
     /** Recipient for events with no cook session. Dispatch prefers this over the session join. */
     userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    /** Set for shopping reminders, which belong to a plan and a date. */
+    planId: uuid("plan_id").references((): AnyPgColumn => mealPlan.id, { onDelete: "cascade" }),
     mealSlotId: uuid("meal_slot_id").references((): AnyPgColumn => mealSlot.id, {
       onDelete: "cascade",
     }),
@@ -498,6 +504,7 @@ export const scheduledStepEvent = pgTable(
     index("scheduled_step_event_fire_idx").on(t.status, t.fireAt),
     index("scheduled_step_event_session_idx").on(t.cookSessionId),
     index("scheduled_step_event_meal_slot_idx").on(t.mealSlotId),
+    index("scheduled_step_event_plan_idx").on(t.planId),
   ],
 );
 

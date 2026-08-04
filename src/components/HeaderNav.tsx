@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-export type HeaderNavIcon = "discover" | "planner" | "create" | "admin";
+export type HeaderNavIcon = "discover" | "planner" | "recipes" | "saved" | "create" | "admin";
 
 export type HeaderNavItem = {
   href: string;
@@ -11,6 +11,8 @@ export type HeaderNavItem = {
   icon: HeaderNavIcon;
   /** Terracotta rather than ink, for the admin link. */
   accent?: boolean;
+  /** Filled, for the one action the nav is trying to encourage. */
+  primary?: boolean;
 };
 
 /**
@@ -48,9 +50,11 @@ export function HeaderNav({
               href={item.href}
               aria-current={current ? "page" : undefined}
               className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-sm font-medium transition ${
-                current
-                  ? "border-terracotta bg-terracotta-tint text-terracotta-strong"
-                  : "border-sand-strong bg-surface text-ink-soft hover:border-terracotta hover:text-terracotta-strong"
+                item.primary
+                  ? "border-transparent bg-terracotta text-[#fff8f0] shadow-sm hover:bg-terracotta-strong"
+                  : current
+                    ? "border-terracotta bg-terracotta-tint text-terracotta-strong"
+                    : "border-sand-strong bg-surface text-ink-soft hover:border-terracotta hover:text-terracotta-strong"
               }`}
             >
               <NavIcon name={item.icon} className="h-4 w-4" />
@@ -72,17 +76,23 @@ export function HeaderNav({
             href={item.href}
             aria-current={current ? "page" : undefined}
             className={`group inline-flex items-center gap-2 rounded-full px-4 py-2 text-[0.95rem] font-medium transition ${
-              current
-                ? "bg-terracotta-tint text-terracotta-strong"
-                : item.accent
-                  ? "text-terracotta hover:bg-sunken hover:text-terracotta-strong"
-                  : "text-ink-soft hover:bg-sunken hover:text-terracotta-strong"
+              item.primary
+                ? "bg-terracotta text-[#fff8f0] shadow-sm hover:bg-terracotta-strong"
+                : current
+                  ? "bg-terracotta-tint text-terracotta-strong"
+                  : item.accent
+                    ? "text-terracotta hover:bg-sunken hover:text-terracotta-strong"
+                    : "text-ink-soft hover:bg-sunken hover:text-terracotta-strong"
             }`}
           >
             <NavIcon
               name={item.icon}
               className={`h-[18px] w-[18px] transition ${
-                current ? "text-terracotta-strong" : "text-ink-muted group-hover:text-terracotta"
+                item.primary
+                  ? "text-[#fff8f0]"
+                  : current
+                    ? "text-terracotta-strong"
+                    : "text-ink-muted group-hover:text-terracotta"
               }`}
             />
             {item.label}
@@ -116,6 +126,15 @@ function NavIcon({ name, className }: { name: HeaderNavIcon; className?: string 
           <path d="M3 8.5h14M7 3v3M13 3v3" strokeLinecap="round" />
           <path d="M6.5 12h2M11.5 12h2" strokeLinecap="round" />
         </>
+      ) : null}
+      {name === "recipes" ? (
+        <>
+          <path d="M4 4.5h5.5a2 2 0 0 1 2 2V17a1.75 1.75 0 0 0-1.75-1.75H4V4.5z" strokeLinejoin="round" />
+          <path d="M16 4.5h-4.5a2 2 0 0 0-2 2V17a1.75 1.75 0 0 1 1.75-1.75H16V4.5z" strokeLinejoin="round" />
+        </>
+      ) : null}
+      {name === "saved" ? (
+        <path d="M5.5 3.5h9v13l-4.5-3.25L5.5 16.5v-13z" strokeLinejoin="round" />
       ) : null}
       {name === "create" ? (
         <>
