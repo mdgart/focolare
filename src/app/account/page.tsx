@@ -5,6 +5,7 @@ import { getChannelProfileForUser } from "@/actions/channels";
 import { listRecipesForUser } from "@/actions/recipes";
 import { db } from "@/db";
 import { user } from "@/db/schema";
+import { appHost } from "@/lib/app-url";
 import { cookNotifyChannelsAvailable } from "@/lib/cook-timer-notify";
 import { getOrCreateChannelForUser } from "@/lib/ensure-channel";
 import { PLAN_LIMITS, type Plan } from "@/lib/entitlements";
@@ -12,6 +13,7 @@ import { verificationEnforced } from "@/lib/email-verification";
 import { getServerSession } from "@/lib/session";
 import { MyRecipesList } from "./my-recipes-list";
 import { ProfileAvatarForm } from "./profile-avatar-form";
+import { UsernameForm } from "./username-form";
 import { PushNotificationToggle } from "@/components/PushNotificationToggle";
 import { VoiceCookSetting } from "@/components/VoiceCookSetting";
 import { NotificationSettingsForm } from "./notification-settings-form";
@@ -29,6 +31,7 @@ export default async function AccountPage() {
   await getOrCreateChannelForUser({
     userId: session.user.id,
     displayName: session.user.name ?? "Creator",
+    email: session.user.email,
   });
 
   const [profile, myRecipes, myChannel] = await Promise.all([
@@ -88,6 +91,8 @@ export default async function AccountPage() {
         ) : null}
       </dl>
 
+      {myChannel ? <UsernameForm username={myChannel.slug} host={appHost()} /> : null}
+
       {myChannel ? (
         <ProfileAvatarForm
           channelTitle={myChannel.title}
@@ -112,7 +117,7 @@ export default async function AccountPage() {
             New recipe
           </Link>
         </div>
-        <MyRecipesList recipes={myRecipes} />
+        <MyRecipesList recipes={myRecipes} channelSlug={myChannel?.slug ?? null} />
       </section>
 
       <section className="space-y-3 rounded-2xl border border-sand bg-surface p-5">

@@ -15,7 +15,8 @@
     "check:ingredients": "tsx src/lib/ingredient-tools.check.ts",
     "check:timers": "tsx src/lib/cook-timers.check.ts",
     "check:units": "tsx src/lib/unit-convert.check.ts",
-    "check": "npm run check:matching && npm run check:grocery && npm run check:suggest && npm run check:ingredients && npm run check:timers && npm run check:units",
+    "check:usernames": "tsx src/lib/username.check.ts",
+    "check": "npm run check:matching && npm run check:grocery && npm run check:suggest && npm run check:ingredients && npm run check:timers && npm run check:units && npm run check:usernames",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
@@ -25,7 +26,9 @@
     "db:backfill:tags": "tsx src/db/backfill-mock-tags.ts",
     "db:migrate": "tsx src/db/migrate.ts",
     "db:remove:demo": "tsx src/db/remove-demo-data.ts",
-    "db:set-plan": "tsx src/db/set-plan.ts"
+    "db:set-plan": "tsx src/db/set-plan.ts",
+    "db:backfill:usernames": "tsx src/db/backfill-usernames.ts",
+    "db:set-username": "tsx src/db/set-username.ts"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.3",

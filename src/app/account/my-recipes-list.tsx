@@ -4,7 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { UserRecipeRow } from "@/actions/recipes";
-import { DeleteRecipeButton } from "@/app/recipe/[id]/delete-recipe-button";
+import { DeleteRecipeButton } from "@/app/c/[slug]/recipe/[recipeSlug]/delete-recipe-button";
+import { recipeEditHref, recipeHref } from "@/lib/recipe-url";
 
 type Filter = "all" | "published" | "private" | "drafts";
 
@@ -23,7 +24,13 @@ function matches(r: UserRecipeRow, f: Filter): boolean {
   return !isDraft && r.visibility === "public";
 }
 
-export function MyRecipesList({ recipes }: { recipes: UserRecipeRow[] }) {
+export function MyRecipesList({
+  recipes,
+  channelSlug,
+}: {
+  recipes: UserRecipeRow[];
+  channelSlug: string | null;
+}) {
   const [filter, setFilter] = useState<Filter>("all");
 
   const counts = useMemo(
@@ -79,7 +86,7 @@ export function MyRecipesList({ recipes }: { recipes: UserRecipeRow[] }) {
     <ul className="divide-y divide-sand overflow-hidden rounded-2xl border border-sand bg-surface">
       {shown.map((r) => (
         <li key={r.id} className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:gap-4">
-          <Link href={`/recipe/${r.id}`} className="flex min-w-0 flex-1 items-center gap-3 group">
+          <Link href={recipeHref({ recipeId: r.id, channelSlug, recipeSlug: r.slug })} className="flex min-w-0 flex-1 items-center gap-3 group">
             <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-neutral-100">
               {r.coverPublicUrl ? (
                 <Image
@@ -121,7 +128,7 @@ export function MyRecipesList({ recipes }: { recipes: UserRecipeRow[] }) {
           </Link>
           <div className="flex shrink-0 flex-wrap items-center gap-2 sm:justify-end">
             <Link
-              href={`/recipe/${r.id}/edit`}
+              href={recipeEditHref({ recipeId: r.id, channelSlug, recipeSlug: r.slug })}
               className="rounded-lg border border-neutral-300 bg-white px-3 py-1.5 text-sm font-medium text-neutral-800 hover:bg-neutral-50"
             >
               Edit

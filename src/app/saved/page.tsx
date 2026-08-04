@@ -54,6 +54,7 @@ export default async function SavedPage() {
             <RecipeCard
               key={r.id}
               id={r.id}
+              slug={r.slug}
               title={r.title}
               description={r.description}
               creatorName={r.channelTitle}

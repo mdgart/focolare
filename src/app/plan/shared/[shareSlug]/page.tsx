@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSharedPlan } from "@/actions/meal-plans";
 import { formatPlanDate, MEAL_LABEL, MEAL_ORDER, type MealType } from "@/lib/meal-plan";
+import { recipeHref } from "@/lib/recipe-url";
 
 /** A shared plan is a private link, not public content — keep it out of search. */
 export const metadata = {
@@ -52,7 +53,11 @@ export default async function SharedPlanPage({
                       </span>
                       {slot.recipeId ? (
                         <Link
-                          href={`/recipe/${slot.recipeId}`}
+                          href={recipeHref({
+                            recipeId: slot.recipeId,
+                            channelSlug: slot.channelSlug,
+                            recipeSlug: slot.recipeSlug,
+                          })}
                           className="font-medium text-ink hover:text-terracotta-strong"
                         >
                           {slot.recipeTitle}

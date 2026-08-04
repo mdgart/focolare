@@ -3,14 +3,17 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { completeCookSessionAction } from "@/actions/cook";
 import { db } from "@/db";
-import { cookSession, recipe, recipeStep, scheduledStepEvent, taxonomyCategory } from "@/db/schema";
+import { channel, cookSession, recipe, recipeStep, scheduledStepEvent, taxonomyCategory } from "@/db/schema";
 import { isPreparationRecipe } from "@/lib/preparation-recipe";
+import { recipePath } from "@/lib/recipe-url";
 import { getServerSession } from "@/lib/session";
 
 export type OngoingPreparation = {
   cookSessionId: string;
   recipeId: string;
   recipeTitle: string;
+  /** For the readable recipe link. */
+  recipePath: string;
   categoryLabel: string | null;
   currentStepTitle: string;
   currentStepIndex: number;
@@ -39,12 +42,15 @@ async function buildOngoingPreparations(userId: string): Promise<OngoingPreparat
       cookSessionId: cookSession.id,
       recipeId: cookSession.recipeId,
       recipeTitle: recipe.title,
+      recipeSlug: recipe.slug,
+      channelSlug: channel.slug,
       taxonomyCategoryId: recipe.taxonomyCategoryId,
       currentStepIndex: cookSession.currentStepIndex,
       startedAt: cookSession.startedAt,
     })
     .from(cookSession)
     .innerJoin(recipe, eq(cookSession.recipeId, recipe.id))
+    .innerJoin(channel, eq(recipe.channelId, channel.id))
     .where(and(eq(cookSession.userId, userId), eq(cookSession.state, "active")))
     .orderBy(desc(cookSession.startedAt));
 
@@ -120,6 +126,7 @@ async function buildOngoingPreparations(userId: string): Promise<OngoingPreparat
       cookSessionId: s.cookSessionId,
       recipeId: s.recipeId,
       recipeTitle: s.recipeTitle,
+      recipePath: recipePath(s.channelSlug, s.recipeSlug),
       categoryLabel: taxRow?.label ?? null,
       currentStepTitle: currentStep?.title ?? "In progress",
       currentStepIndex: stepIdx,
