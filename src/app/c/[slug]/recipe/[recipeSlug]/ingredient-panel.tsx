@@ -14,6 +14,20 @@ import { estimateDensitiesAction } from "@/actions/density";
 import { normalizeIngredientName } from "@/lib/normalize-ingredient";
 import { substitutionsFor } from "@/lib/substitutions";
 
+/**
+ * The list-level controls: small buttons, not links.
+ *
+ * They sit in a row with the scale stepper and each one *does* something to the
+ * list below, so they should look like the controls they are. As underlined
+ * text they read as footnotes and were easy to miss entirely.
+ */
+const CONTROL =
+  "rounded-full border border-sand-strong bg-surface px-2.5 py-1 text-xs font-medium text-ink-soft transition hover:border-terracotta hover:text-terracotta-strong";
+
+/** The same button while its panel is open. */
+const CONTROL_ON =
+  "rounded-full border border-transparent bg-terracotta px-2.5 py-1 text-xs font-medium text-[#fff8f0] transition hover:bg-terracotta-strong";
+
 /** Offered when a recipe doesn't say how many it serves. */
 const RATIOS = [0.5, 1, 2, 3];
 
@@ -171,7 +185,7 @@ export function IngredientPanel({
           <button
             type="button"
             onClick={() => setByIngredient((v) => !v)}
-            className="text-xs font-medium text-ink-muted underline-offset-2 transition hover:text-terracotta-strong hover:underline"
+            className={byIngredient ? CONTROL_ON : CONTROL}
           >
             {byIngredient ? "Hide" : "Scale to an amount I have"}
           </button>
@@ -180,7 +194,7 @@ export function IngredientPanel({
         <button
           type="button"
           onClick={() => setAskingSubs(true)}
-          className="text-xs font-medium text-ink-muted underline-offset-2 transition hover:text-terracotta-strong hover:underline"
+          className={CONTROL}
         >
           Missing something?
         </button>
@@ -188,7 +202,7 @@ export function IngredientPanel({
         <button
           type="button"
           onClick={() => setShowIn(showIn ? null : otherSystem)}
-          className="text-xs font-medium text-ink-muted underline-offset-2 transition hover:text-terracotta-strong hover:underline"
+          className={showIn ? CONTROL_ON : CONTROL}
         >
           {showIn
             ? "Back to the recipe's units"
@@ -205,7 +219,7 @@ export function IngredientPanel({
               setTarget("");
               setPinnedIndex(null);
             }}
-            className="text-xs font-medium text-ink-muted underline-offset-2 transition hover:text-terracotta-strong hover:underline"
+            className={CONTROL}
           >
             Back to as written
           </button>
