@@ -15,6 +15,7 @@ import {
   stableIdFor,
   type DesiredNotification,
 } from "@/lib/native/local-schedule";
+import { cookTimerKey, desiredCookNotifications } from "@/lib/native/cook-notifications";
 
 let failures = 0;
 function check(label: string, actual: unknown, expected: unknown) {
@@ -155,6 +156,57 @@ check(
     { id: 999, fireAt: NOW + MIN },
   ]).cancel,
   [999],
+);
+
+/* ---------- turning cook timers into alarms ---------- */
+
+const TL = [
+  { durationSeconds: 0, label: "Chop the onion" },
+  { durationSeconds: 600, label: "Simmer gently" },
+  { durationSeconds: 300, label: "Rest off the heat" },
+];
+const cookDesired = (armed: Parameters<typeof desiredCookNotifications>[3], now = NOW) =>
+  desiredCookNotifications("sesh", "Ragu", TL, armed, now);
+
+check(
+  "a running timer becomes one alarm",
+  cookDesired([{ stepIndex: 1, state: "running", atMs: NOW }]).map((d) => d.fireAt - NOW),
+  [600_000],
+);
+// The one people get wrong: a break should not be interrupted by the thing
+// they paused to avoid.
+check(
+  "a paused timer schedules nothing",
+  cookDesired([{ stepIndex: 1, state: "paused", remainingMs: 300_000 }]).length,
+  0,
+);
+check(
+  "a step with no duration schedules nothing",
+  cookDesired([{ stepIndex: 0, state: "running", atMs: NOW }]).length,
+  0,
+);
+check(
+  "an already-elapsed timer schedules nothing",
+  cookDesired([{ stepIndex: 1, state: "running", atMs: NOW - 700_000 }]).length,
+  0,
+);
+check(
+  "the body names the step, not the timer",
+  cookDesired([{ stepIndex: 2, state: "running", atMs: NOW }])[0]?.body,
+  "Rest off the heat",
+);
+check(
+  "the key is stable and step-scoped",
+  cookTimerKey("sesh", 2),
+  "sesh:step:2",
+);
+check(
+  "two running timers become two alarms",
+  cookDesired([
+    { stepIndex: 1, state: "running", atMs: NOW },
+    { stepIndex: 2, state: "running", atMs: NOW },
+  ]).length,
+  2,
 );
 
 console.log(failures === 0 ? "\nall passed" : `\n${failures} failed`);

@@ -38,4 +38,29 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!--
+        Cook timers.
+
+        POST_NOTIFICATIONS is the runtime prompt on Android 13+; without it
+        nothing is shown at all.
+
+        SCHEDULE_EXACT_ALARM is the one that matters for accuracy. Without it
+        Doze batches alarms and a five-minute egg timer fires "some time after
+        five minutes" — late, silently, with no error and no way for the cook to
+        know until the food is ruined. The user can revoke it in Settings, which
+        is why the app checks at runtime and says so rather than assuming.
+
+        USE_EXACT_ALARM would grant the same thing with no prompt, but Play
+        restricts it to apps whose core function is timing (alarm clocks,
+        calendars). A recipe app with a timer is a plausible argument to make
+        later; it is not one to make silently in a first submission.
+
+        RECEIVE_BOOT_COMPLETED re-registers pending alarms after a restart —
+        otherwise a phone that reboots mid-prove loses every timer.
+    -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

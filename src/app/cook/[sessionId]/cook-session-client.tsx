@@ -27,6 +27,10 @@ import {
   type ArmedTimer,
 } from "@/lib/cook-timers";
 import { createAlarm } from "@/lib/cook-alarm";
+import { App as CapApp } from "@capacitor/app";
+import { isNative } from "@/lib/native";
+import { syncNotifications } from "@/lib/native/notifications";
+import { desiredCookNotifications } from "@/lib/native/cook-notifications";
 import { IngredientControls } from "./ingredient-controls";
 import type { DisplayIngredient, IngredientPrefs } from "@/lib/ingredient-prefs";
 import type { MeasureSystem } from "@/lib/unit-convert";
@@ -325,6 +329,47 @@ export function CookSessionClient(props: {
     const id = window.setInterval(() => setNow(Date.now()), 500);
     return () => window.clearInterval(id);
   }, []);
+
+  /**
+   * Keep the phone's own alarms matched to the timers on screen.
+   *
+   * `armed` already changes at exactly the right moments — arm, pause, resume,
+   * restart, retire — so this effect is the entire cook-timer half of the
+   * native schedule. No new state, no new events to keep in step.
+   *
+   * The point of it: these alarms are held by the OS, so the timer rings on a
+   * locked phone with the app closed, no server, no cron, and no network. The
+   * server's row stays the source of truth and still drives email and SMS; this
+   * just gets there first and without asking anyone's permission but the
+   * cook's.
+   *
+   * Also re-run on resume, because the OS can drop or defer pending alarms
+   * while an app is backgrounded and an idempotent reconcile is cheap.
+   */
+  useEffect(() => {
+    if (!isNative()) return;
+
+    let cancelled = false;
+    const sync = () => {
+      if (cancelled) return;
+      void syncNotifications(
+        desiredCookNotifications(
+          props.cookSessionId,
+          props.recipeTitle,
+          props.timeline,
+          armed,
+          Date.now(),
+        ),
+      );
+    };
+
+    sync();
+    const listener = CapApp.addListener("resume", sync);
+    return () => {
+      cancelled = true;
+      void listener.then((l) => l.remove());
+    };
+  }, [armed, props.cookSessionId, props.recipeTitle, props.timeline]);
 
   useEffect(() => {
     if (!voiceOn) {

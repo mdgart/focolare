@@ -39,8 +39,11 @@
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.3",
     "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
     "@capacitor/core": "^8.5.0",
     "@capacitor/ios": "^8.5.0",
+    "@capacitor/local-notifications": "^8.2.1",
+    "@capacitor/preferences": "^8.0.1",
     "@paralleldrive/cuid2": "^3.3.0",
     "@vercel/blob": "^2.6.1",
     "better-auth": "^1.6.3",
