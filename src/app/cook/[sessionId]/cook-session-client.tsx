@@ -174,19 +174,35 @@ export function CookSessionClient(props: {
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
+  /**
+   * Start the countdown here first, tell the server after.
+   *
+   * The timer belongs to the person in the kitchen, not to the network. This
+   * used to await the server before touching state, inside a try/finally with
+   * no catch — so a dropped connection threw straight past the error branch and
+   * "Start timer" did nothing at all, with no message. Standing in a kitchen
+   * watching a button not work is the worst version of this screen.
+   *
+   * Now the clock starts immediately and a failure is reported rather than
+   * swallowed. The local timer keeps running either way: it still rings in the
+   * page, and once the native shell schedules alarms it rings on a locked phone
+   * too. What is lost without the server is the push to a closed app, so that
+   * is exactly what the message says.
+   */
   const armTimer = useCallback(async () => {
     if (pendingArm || !step || step.durationSeconds <= 0 || timerArmedAt != null) return;
     setPendingArm(true);
     setVoiceHint(null);
     // Browsers only allow sound after a gesture, and zero o'clock isn't one.
     alarmRef.current?.prime();
+    setArmed((all) => armStep(all, idx, Date.now()));
     try {
       const res = await armStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
-      if ("error" in res) {
-        setVoiceHint(res.error);
-        return;
-      }
-      setArmed((all) => armStep(all, idx, Date.now()));
+      if ("error" in res) setVoiceHint(res.error);
+    } catch {
+      setVoiceHint(
+        "Timer running on this device. We couldn't reach the server, so it won't alert you if you close the app.",
+      );
     } finally {
       setPendingArm(false);
     }
@@ -233,16 +249,30 @@ export function CookSessionClient(props: {
     await armStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
   }, [idx, step, props.cookSessionId]);
 
+  /**
+   * Move on now, reconcile with the server after.
+   *
+   * This used to await the skip call before advancing, so a failed request left
+   * the cook pressing Next and watching the same step stare back — silently,
+   * because nothing caught the throw. Moving between steps is the one thing
+   * this screen must never refuse to do.
+   */
   const goNext = useCallback(async () => {
     setVoiceHint(null);
     const cur = idx;
-    await skipPendingTimersForCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: cur });
-    // Its server-side event was just skipped, so drop only this step's.
+    // Its server-side event is about to be skipped, so drop only this step's.
     setArmed((all) => retireStep(all, cur));
     setConfirmNext(false);
     const nextIdx = Math.min(cur + 1, props.timeline.length - 1);
     setIdx(nextIdx);
-    await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: nextIdx });
+    try {
+      await skipPendingTimersForCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: cur });
+      await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: nextIdx });
+    } catch {
+      // The step moved; only the server's record of it didn't. Phase 3's queue
+      // replays this — until then, say so rather than pretend it landed.
+      setVoiceHint("You've moved on, but we couldn't save that. Reload when you're back online.");
+    }
   }, [idx, props.cookSessionId, props.timeline.length]);
 
   const goNextRef = useRef(goNext);
