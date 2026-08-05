@@ -33,6 +33,9 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.3",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
     "@paralleldrive/cuid2": "^3.3.0",
     "@vercel/blob": "^2.6.1",
     "better-auth": "^1.6.3",
@@ -48,6 +51,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.0",

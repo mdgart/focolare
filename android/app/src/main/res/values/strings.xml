@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Focolare</string>
+    <string name="title_activity_main">Focolare</string>
+    <string name="package_name">app.focolare</string>
+    <string name="custom_url_scheme">app.focolare</string>
+</resources>
