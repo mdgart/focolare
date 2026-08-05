@@ -1,7 +1,7 @@
 "use server";
 
 import { substitutionsFor, type Substitution } from "@/lib/substitutions";
-import { getOpenAI, isAiRecipeEnabled, RECIPE_PARSE_MODEL } from "@/lib/openai";
+import { fastJsonCompletion, isFastJsonEnabled } from "@/lib/ai-fast";
 import { getServerSession } from "@/lib/session";
 
 export type SubstitutionAnswer = {
@@ -66,11 +66,11 @@ export async function suggestSubstitutionsAction(input: {
   }
 
   if (unknown.length === 0) return { answers };
-  if (!isAiRecipeEnabled()) return { answers };
+  if (!isFastJsonEnabled()) return { answers };
 
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: RECIPE_PARSE_MODEL,
+    // Same fast lane as the density lookup: a modal is open, waiting.
+    const answer = await fastJsonCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         {
@@ -124,7 +124,7 @@ export async function suggestSubstitutionsAction(input: {
       },
     });
 
-    const raw = JSON.parse(completion.choices[0]?.message?.content ?? "{}") as {
+    const raw = JSON.parse(answer ?? "{}") as {
       results?: { ingredient: string; options: { use: string; ratio: string; caveat: string }[] }[];
     };
 

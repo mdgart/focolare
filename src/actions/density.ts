@@ -4,7 +4,7 @@ import { inArray } from "drizzle-orm";
 import { db } from "@/db";
 import { ingredientDensity } from "@/db/schema";
 import { normalizeIngredientName } from "@/lib/normalize-ingredient";
-import { getOpenAI, isAiRecipeEnabled, RECIPE_PARSE_MODEL } from "@/lib/openai";
+import { fastJsonCompletion, isFastJsonEnabled } from "@/lib/ai-fast";
 import { getServerSession } from "@/lib/session";
 
 export type EstimatedDensity = {
@@ -60,12 +60,12 @@ export async function estimateDensitiesAction(
     .where(inArray(ingredientDensity.normalizedName, wanted));
 
   const missing = wanted.filter((n) => !cached.some((c) => c.normalizedName === n));
-  if (missing.length === 0 || !isAiRecipeEnabled()) return { densities: cached };
+  if (missing.length === 0 || !isFastJsonEnabled()) return { densities: cached };
 
   let fresh: EstimatedDensity[] = [];
   try {
-    const completion = await getOpenAI().chat.completions.create({
-      model: RECIPE_PARSE_MODEL,
+    // Small, schema-bound, and someone is waiting on it — the fast lane.
+    const answer = await fastJsonCompletion({
       messages: [
         { role: "system", content: SYSTEM_PROMPT },
         { role: "user", content: missing.join("\n") },
@@ -99,7 +99,7 @@ export async function estimateDensitiesAction(
       },
     });
 
-    const raw = JSON.parse(completion.choices[0]?.message?.content ?? "{}") as {
+    const raw = JSON.parse(answer ?? "{}") as {
       densities?: { name: string; grams_per_cup: number; liquid: boolean }[];
     };
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { suggestSubstitutionsAction, type SubstitutionAnswer } from "@/actions/substitutions";
+import type { ChosenSubstitution } from "@/lib/ingredient-prefs";
 
 /**
  * "What can I use instead of…" for any ingredient, not just the known ones.
@@ -19,10 +20,15 @@ import { suggestSubstitutionsAction, type SubstitutionAnswer } from "@/actions/s
 export function SubstitutionsModal({
   ingredientNames,
   recipeTitle,
+  chosen,
+  onChoose,
   onClose,
 }: {
   ingredientNames: string[];
   recipeTitle: string;
+  /** Swaps already in force, so the list can show which one is picked. */
+  chosen: ChosenSubstitution[];
+  onChoose: (choice: ChosenSubstitution) => void;
   onClose: () => void;
 }) {
   const [picked, setPicked] = useState<Set<string>>(new Set());
@@ -147,15 +153,38 @@ export function SubstitutionsModal({
                       </p>
                     ) : (
                       <ul className="mt-2 space-y-2">
-                        {answer.options.map((option) => (
-                          <li key={option.use} className="rounded-xl bg-sunken/50 px-3 py-2">
-                            <p className="text-sm font-medium text-ink">{option.use}</p>
-                            <p className="text-xs text-ink-soft">{option.ratio}</p>
-                            {option.caveat ? (
-                              <p className="mt-0.5 text-xs text-ink-muted">{option.caveat}</p>
-                            ) : null}
-                          </li>
-                        ))}
+                        {answer.options.map((option) => {
+                          const picked = chosen.some(
+                            (c) => c.forIngredient === answer.ingredient && c.use === option.use,
+                          );
+                          return (
+                            <li
+                              key={option.use}
+                              className={`rounded-xl px-3 py-2 ${
+                                picked ? "bg-terracotta-tint" : "bg-sunken/50"
+                              }`}
+                            >
+                              <p className="text-sm font-medium text-ink">{option.use}</p>
+                              <p className="text-xs text-ink-soft">{option.ratio}</p>
+                              {option.caveat ? (
+                                <p className="mt-0.5 text-xs text-ink-muted">{option.caveat}</p>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  onChoose({
+                                    forIngredient: answer.ingredient,
+                                    use: picked ? "" : option.use,
+                                    ratio: option.ratio,
+                                  })
+                                }
+                                className="mt-1.5 text-xs font-medium text-terracotta-strong underline-offset-2 hover:underline"
+                              >
+                                {picked ? "Using this — undo" : "Use this"}
+                              </button>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </li>

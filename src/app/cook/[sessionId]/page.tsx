@@ -7,7 +7,8 @@ import { getServerSession } from "@/lib/session";
 import { buildForwardTimeline, type StepInput } from "@/lib/cook-schedule";
 import { armedFromPending } from "@/lib/cook-timers";
 import { recipePath } from "@/lib/recipe-url";
-import { scaleIngredients } from "@/lib/scale-amount";
+import { getIngredientPrefsAction } from "@/actions/ingredient-prefs";
+import { applyPrefs } from "@/lib/ingredient-prefs";
 import { CookSessionClient } from "./cook-session-client";
 
 export default async function CookSessionPage({ params }: { params: Promise<{ sessionId: string }> }) {
@@ -70,6 +71,7 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
   }));
 
   const stepIdx = Math.min(Math.max(0, cs.currentStepIndex), Math.max(0, steps.length - 1));
+  const ingredientPrefs = await getIngredientPrefsAction(cs.recipeId);
 
   // Every pending timer, not just one on the step being viewed. Steps are
   // navigable, so a cook can be reading step 2 while step 3 simmers — and
@@ -129,8 +131,14 @@ export default async function CookSessionPage({ params }: { params: Promise<{ se
         initialArmed={initialArmed}
         // Scaled here rather than in the client so the numbers a cook reads
         // mid-step are the same ones the session was started at.
-        ingredients={scaleIngredients(r.ingredients ?? [], (cs.scale || 100) / 100)}
-        scalePercent={cs.scale || 100}
+        // Rendered through the cook's saved preferences, the same call the
+        // recipe page makes — so what you set up while reading is what you
+        // cook from. `cookSession.scale` is no longer the driver.
+        ingredients={applyPrefs(r.ingredients ?? [], ingredientPrefs, r.ingredientMeasureSystem ?? "metric")}
+        recipeId={r.id}
+        prefs={ingredientPrefs}
+        writtenIn={r.ingredientMeasureSystem ?? "metric"}
+        baseIngredients={r.ingredients ?? []}
       />
     </div>
   );
