@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "dev:cron": "tsx scripts/dev-cron.ts",
-    "native:gate": "NATIVE_SERVER_URL=http://$(ipconfig getifaddr en0):3000/native-check npx cap sync",
-    "native:dev": "NATIVE_SERVER_URL=http://$(ipconfig getifaddr en0):3000 npx cap sync",
+    "native:serve": "next build && next start -p 3001",
+    "native:gate": "NATIVE_SERVER_URL=http://$(ipconfig getifaddr en0):3001/native-check npx cap sync",
+    "native:local": "NATIVE_SERVER_URL=http://$(ipconfig getifaddr en0):3001 npx cap sync",
     "native:prod": "npx cap sync",
     "build": "next build",
     "vercel-build": "npm run db:migrate && next build",

@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { Capacitor } from "@capacitor/core";
-import { useNativePlatform } from "@/lib/native";
+import { useEffect, useState } from "react";
+
 
 /**
  * The Phase 0 gate, made visible.
@@ -22,38 +21,54 @@ import { useNativePlatform } from "@/lib/native";
 
 type Handshake = { minBuild: number; currentBuild: number } | { error: string };
 
-export default function NativeCheckPage() {
-  // Read through useSyncExternalStore, not an effect: these differ between
-  // server and client, and setting them from an effect trips React 19's
-  // cascading-render rule. None of them change while the app runs.
-  const noop = () => () => {};
-  const platform = useNativePlatform();
-  /**
-   * The *native* message bridge, not `window.Capacitor`.
-   *
-   * Importing `@capacitor/core` defines `window.Capacitor` in an ordinary
-   * browser too, so checking for it reports "yes" on the web and would read
-   * like a pass. These two handlers are injected by the native runtime and
-   * exist nowhere else — which is exactly the question Phase 0 is asking.
-   */
-  const bridge = useSyncExternalStore(
-    noop,
-    () =>
-      typeof (window as { androidBridge?: unknown }).androidBridge !== "undefined" ||
-      Boolean(
-        (window as { webkit?: { messageHandlers?: Record<string, unknown> } }).webkit
-          ?.messageHandlers?.bridge,
-      ),
-    () => false,
-  );
-  const nativeApi = useSyncExternalStore(noop, () => Capacitor.isNativePlatform(), () => false);
-  const origin = useSyncExternalStore(noop, () => window.location.origin, () => "");
+/** Everything the gate looks at, read fresh each tick. */
+function readProbe() {
+  if (typeof window === "undefined") {
+    return { platform: "web", bridge: false, nativeApi: false, origin: "", capacitorKeys: "" };
+  }
+  const w = window as unknown as Record<string, unknown>;
+  const cap = w.Capacitor as
+    | { getPlatform?: () => string; isNativePlatform?: () => boolean; platform?: string }
+    | undefined;
+  return {
+    // Ask the injected object directly rather than the bundled wrapper, which
+    // may have been evaluated before the runtime got there.
+    platform: cap?.getPlatform?.() ?? cap?.platform ?? "web",
+    bridge:
+      typeof w.androidBridge !== "undefined" ||
+      Boolean((w.webkit as { messageHandlers?: Record<string, unknown> })?.messageHandlers?.bridge),
+    nativeApi: cap?.isNativePlatform?.() ?? false,
+    origin: window.location.origin,
+    capacitorKeys: cap ? Object.keys(cap).slice(0, 6).join(", ") : "(no window.Capacitor)",
+  };
+}
 
+export default function NativeCheckPage() {
+  /**
+   * Polled, not read once.
+   *
+   * The native bridge is injected by the runtime around page load, and there is
+   * no event to subscribe to. A single read at mount can land before injection
+   * and latch "web" forever — a false negative on the one question this page
+   * exists to answer, which is far worse than being slow. Polling for a few
+   * seconds costs nothing and cannot lie in that direction.
+   */
+  const [probe, setProbe] = useState(() => readProbe());
+
+  useEffect(() => {
+    const id = setInterval(() => setProbe(readProbe()), 250);
+    const stop = setTimeout(() => clearInterval(id), 8000);
+    return () => {
+      clearInterval(id);
+      clearTimeout(stop);
+    };
+  }, []);
+
+  const { platform, bridge, nativeApi, origin, capacitorKeys } = probe;
   const [handshake, setHandshake] = useState<Handshake | null>(null);
 
   useEffect(() => {
     // Proves the shell can also reach the API it will depend on from Phase 1.
-    // setState here is inside an async callback, which the rule allows.
     fetch("/api/native/min-version")
       .then((r) => r.json())
       .then(setHandshake)
@@ -98,6 +113,10 @@ export default function NativeCheckPage() {
         <div className="flex justify-between gap-4 border-b border-sand pb-2">
           <dt className="text-ink-soft">Serving origin</dt>
           <dd className="max-w-[60%] truncate font-medium text-ink">{origin || "…"}</dd>
+        </div>
+        <div className="flex justify-between gap-4 border-b border-sand pb-2">
+          <dt className="text-ink-soft">window.Capacitor</dt>
+          <dd className="max-w-[60%] truncate text-right font-medium text-ink">{capacitorKeys}</dd>
         </div>
         <div className="flex justify-between gap-4 border-b border-sand pb-2">
           <dt className="text-ink-soft">Version handshake</dt>

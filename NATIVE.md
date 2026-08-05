@@ -10,7 +10,55 @@ registered push subscription, and on iOS only after a home-screen install. A
 native shell lets the OS own the alarm, so it fires with no server, no cron, and
 no network.
 
-## Phase 0 — prove the bridge (you must run this)
+## Phase 0 — passed ✅
+
+Verified on an Android emulator (API 36) against a production build, 2026-08-05.
+Read from inside the WebView on a page served over the network:
+
+```
+window.Capacitor.getPlatform()      → "android"
+window.Capacitor.isNativePlatform() → true
+window.androidBridge                → object
+```
+
+**Capacitor injects its native bridge into a remote origin.** The `server.url`
+approach is viable; Phase 1 can proceed.
+
+iOS is still unverified — it needs Xcode, and WKWebView is the more constrained
+of the two engines. Confirm it before Phase 1 ships.
+
+## ⚠️ Do not develop the shell against `next dev`
+
+This cost an afternoon, so it is the first thing to know.
+
+**`next dev` renders inside the WebView but never hydrates.** Turbopack's dev
+runtime does not boot in Android's WebView (Chrome 133): 19 scripts load, none
+fail, `__turbopack_context__` stays undefined, and no React fiber is ever
+attached. The app looks completely normal and is entirely non-interactive — no
+effects, no state, no clicks. Nothing announces this; the page just sits there
+showing its server-rendered HTML.
+
+It also produces a **false negative on the gate itself**: the check page reported
+`web` while the runtime underneath it said `android`, because the component that
+reads the platform never ran.
+
+Against a production build every one of those flips: React hydrates, the bridge
+reports `android`, and the page shows what the runtime shows.
+
+So the native workflow always runs a production server:
+
+```bash
+npm run native:serve            # next build && next start -p 3001
+```
+
+```bash
+npm run native:gate && npx cap open android
+```
+
+The tradeoff is real — no hot reload, and a rebuild for every web change. That
+is the price of the WebView being an honest preview of production.
+
+## The gate (re-run it after any change to the shell)
 
 Everything rests on one assumption: **Capacitor injects its native bridge into a
 page served from the internet**, not only into files bundled in the binary. If it
@@ -52,10 +100,10 @@ WebView, running on a simulator or a phone. Not a terminal.
 
 It has no address bar, and `/native-check` only exists on this branch, so
 pointing the app at production would 404. Instead, aim the shell straight at the
-check page on your own dev server. Two terminals:
+check page on a local **production** server. Two terminals:
 
 ```bash
-npm run dev
+npm run native:serve
 ```
 
 ```bash
@@ -77,8 +125,9 @@ blank white screen and no error that points at the cause.
 
 | Script | Origin the shell loads |
 |---|---|
-| `npm run native:gate` | your dev server, opening on `/native-check` |
-| `npm run native:dev` | your dev server, opening on the home page |
+| `npm run native:serve` | (not a sync) builds and serves production on :3001 |
+| `npm run native:gate` | your local prod server, opening on `/native-check` |
+| `npm run native:local` | your local prod server, home page |
 | `npm run native:prod` | `https://www.focolare.app` — the shipping default |
 
 Re-run one of these after changing the origin: it is baked into the native
