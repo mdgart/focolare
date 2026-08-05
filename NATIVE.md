@@ -31,34 +31,59 @@ The check is a page: **`/native-check`**.
 
 Nothing on this machine has a native toolchain yet, so before the gate:
 
-```bash
-xcode-select --install && sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-```
+- **iOS** — full Xcode from the Mac App Store (`open "macappstore://apps.apple.com/app/id497799835"`),
+  which is a ~7 GB download. `xcode-select --install` is **not** enough — that
+  installs the Command Line Tools, which cannot build an app. After it lands:
 
-- **iOS** — full Xcode from the App Store, then the `xcode-select` line above
-  (Command Line Tools alone are not enough). Capacitor 8 uses Swift Package
-  Manager, so **CocoaPods is not required**.
-- **Android** — Android Studio, which brings its own JDK and SDK.
+  ```bash
+  sudo xcode-select -s /Applications/Xcode.app/Contents/Developer && sudo xcodebuild -runFirstLaunch && sudo xcodebuild -license accept
+  ```
+
+  Capacitor 8 uses Swift Package Manager, so **CocoaPods is not required**.
+
+- **Android** — `brew install --cask android-studio`, then open it once to let it
+  fetch the SDK. Much smaller and quicker than Xcode, and it answers the same
+  question, so it is the better first move while Xcode downloads.
 
 ### Running it
 
-```bash
-npx cap sync && npx cap open ios
-```
+**"The shell" means the Focolare app itself** — the native wrapper around the
+WebView, running on a simulator or a phone. Not a terminal.
 
-Then Run in Xcode (simulator is fine for this gate — the bridge behaves the same;
-a real device only matters from Phase 1, for alarms) and navigate to
-`/native-check`. Repeat with `npx cap open android`.
-
-To point the shell at a local dev server instead of production, set the origin
-before syncing — it is baked into the native project at sync time, not read at
-runtime:
+It has no address bar, and `/native-check` only exists on this branch, so
+pointing the app at production would 404. Instead, aim the shell straight at the
+check page on your own dev server. Two terminals:
 
 ```bash
-NATIVE_SERVER_URL=http://192.168.1.x:3000 npx cap sync
+npm run dev
 ```
 
-Use the LAN address, not `localhost`: on a device `localhost` is the phone.
+```bash
+npm run native:gate && npx cap open ios
+```
+
+Press Run in Xcode. The app opens **directly on the check page** — nothing to
+navigate to. Repeat with `npx cap open android`.
+
+A simulator is fine for this gate: the bridge behaves identically. A real device
+only matters from Phase 1, where alarms and lock-screen behaviour are the point.
+
+`native:gate` fills in your Mac's LAN address automatically. It must be the LAN
+address, never `localhost` — inside the app, `localhost` is the phone. Because
+a dev server is plain HTTP, the config also switches on `cleartext` and
+whitelists that host; both are derived from the URL, so an `https://` origin
+keeps production's rules whatever else is set. Without that, Android shows a
+blank white screen and no error that points at the cause.
+
+| Script | Origin the shell loads |
+|---|---|
+| `npm run native:gate` | your dev server, opening on `/native-check` |
+| `npm run native:dev` | your dev server, opening on the home page |
+| `npm run native:prod` | `https://www.focolare.app` — the shipping default |
+
+Re-run one of these after changing the origin: it is baked into the native
+project at sync time, not read at runtime. **Run `native:prod` before building
+anything you intend to ship**, or you will ship a shell pointing at a laptop.
 
 ## What Phase 0 built
 

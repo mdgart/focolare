@@ -35,6 +35,26 @@ const DEFAULT_SERVER_URL = "https://www.focolare.app";
 const serverUrl = process.env.NATIVE_SERVER_URL?.trim() || DEFAULT_SERVER_URL;
 
 /**
+ * Pointing at a dev server on the LAN needs two things production doesn't.
+ *
+ * A dev server speaks plain HTTP, and Android blocks cleartext by default — the
+ * app opens to a blank white screen with no error anyone would connect to the
+ * cause. And the LAN host isn't in `ownHosts`, so in-app navigation would be
+ * bounced out to the system browser.
+ *
+ * Derived from the URL rather than a second flag, so the two can't disagree:
+ * an `https://` origin gets production's rules whatever else is set.
+ */
+const isLocalOrigin = serverUrl.startsWith("http://");
+const serverHost = (() => {
+  try {
+    return new URL(serverUrl).hostname;
+  } catch {
+    return null;
+  }
+})();
+
+/**
  * Where the WebView may navigate in-place. Anything outside this list opens in
  * the system browser instead, which is what you want for an OAuth provider or
  * an outbound recipe link — and what you very much want for a link a stranger
@@ -58,9 +78,12 @@ const config: CapacitorConfig = {
     url: serverUrl,
     /** Shown when the origin is unreachable — Phase 3 turns this into a cook screen. */
     errorPath: "offline.html",
-    allowNavigation: ownHosts,
-    /** No plaintext HTTP: cookies carry the session. */
-    cleartext: false,
+    allowNavigation: isLocalOrigin && serverHost ? [...ownHosts, serverHost] : ownHosts,
+    /**
+     * Plaintext only when deliberately pointed at a local dev server. Cookies
+     * carry the session, so this is never on for a real origin.
+     */
+    cleartext: isLocalOrigin,
   },
 
   ios: {
