@@ -12,20 +12,35 @@ no network.
 
 ## Phase 0 — passed ✅
 
-Verified on an Android emulator (API 36) against a production build, 2026-08-05.
-Read from inside the WebView on a page served over the network:
+Verified on **both** platforms against a production build, 2026-08-05 — Android
+emulator (API 36) and iOS simulator (iPhone 17 Pro, iOS 26.5). Read from inside
+the WebView, on a page served over the network:
 
-```
-window.Capacitor.getPlatform()      → "android"
-window.Capacitor.isNativePlatform() → true
-window.androidBridge                → object
-```
+| | Android | iOS |
+|---|---|---|
+| `getPlatform()` | `android` | `ios` |
+| `isNativePlatform()` | true | true |
+| native message bridge | `androidBridge` | `webkit.messageHandlers.bridge` |
+| version handshake | reachable | reachable |
 
-**Capacitor injects its native bridge into a remote origin.** The `server.url`
-approach is viable; Phase 1 can proceed.
+**Capacitor injects its native bridge into a remote origin, on both engines.**
+The `server.url` approach is viable; Phase 1 can proceed.
 
-iOS is still unverified — it needs Xcode, and WKWebView is the more constrained
-of the two engines. Confirm it before Phase 1 ships.
+### Two things the iOS run turned up
+
+**App Transport Security.** iOS blocks cleartext HTTP, so pointing the shell at
+a Mac on the LAN needs an exception. `Info.plist` sets `NSAllowsLocalNetworking`
+rather than `NSAllowsArbitraryLoads` — it permits RFC1918 and `.local` addresses
+only, so local development works while the shipping origin stays HTTPS-only. Do
+not swap it for `NSAllowsArbitraryLoads`; App Review asks about that one, and it
+would weaken every connection the app makes.
+
+**The header collides with the status bar.** In the shell the WebView fills the
+screen including the notch and Dynamic Island, and the site's header has no
+safe-area insets — the wordmark runs into the clock and the Sign up button sits
+under the island. Harmless on the web, wrong in an installed app. Phase 2 should
+add `env(safe-area-inset-*)` padding to the header and any fixed element, which
+is the same pass that hides web-only chrome behind `useIsNative()`.
 
 ## ⚠️ Do not develop the shell against `next dev`
 
