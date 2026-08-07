@@ -25,6 +25,12 @@ export type DesiredNotification = {
   kind: NotificationKind;
   /** Where tapping it should land. */
   url?: string;
+  /**
+   * What a notification button needs to act on, carried on the notification
+   * itself. A press can arrive from a cold start, where nothing else is loaded
+   * and there is no screen to ask.
+   */
+  context?: { cookSessionId: string; stepIndex: number };
 };
 
 /** A notification the OS is currently holding, as `getPending()` reports it. */
@@ -102,6 +108,7 @@ export type PlannedNotification = {
   fireAt: number;
   kind: NotificationKind;
   url?: string;
+  context?: { cookSessionId: string; stepIndex: number };
   /** Groups a burst under one heading rather than three rows. */
   threadId: string;
 };
@@ -140,6 +147,7 @@ export function planNotifications(
         fireAt: d.fireAt + offset,
         kind: d.kind,
         url: d.url,
+        context: d.context,
         threadId: d.key,
       });
     }

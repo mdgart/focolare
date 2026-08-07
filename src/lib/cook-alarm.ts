@@ -1,3 +1,6 @@
+import { isNative } from "@/lib/native";
+import { nativeBuzz } from "@/lib/native/haptics";
+
 /**
  * The noise a finished timer makes, in the page that's showing it.
  *
@@ -70,11 +73,25 @@ export function createAlarm(): Alarm {
         }
       }
 
-      // Phones in kitchens are often face-down or muted.
-      try {
-        navigator.vibrate?.([200, 120, 200, 120, 400]);
-      } catch {
-        /* not supported, or blocked without interaction */
+      /**
+       * Phones in kitchens are often face-down or muted.
+       *
+       * `navigator.vibrate` is a **no-op in WKWebView** — it exists, it returns,
+       * and nothing happens — so on iOS the alarm had no physical signal at all
+       * unless the phone was audible. In the native shell the Haptics plugin
+       * does the real thing; on the web the old path is unchanged.
+       *
+       * Fired without awaiting: this runs at zero o'clock alongside the beep,
+       * and a plugin round-trip should not delay the sound.
+       */
+      if (isNative()) {
+        void nativeBuzz();
+      } else {
+        try {
+          navigator.vibrate?.([200, 120, 200, 120, 400]);
+        } catch {
+          /* not supported, or blocked without interaction */
+        }
       }
     },
   };

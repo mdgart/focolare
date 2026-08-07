@@ -1,6 +1,20 @@
 "use client";
 
+import { useIsNative } from "@/lib/native";
+
+/**
+ * Hidden inside the native shell.
+ *
+ * `window.print()` opens nothing in a WKWebView or an Android WebView — the
+ * button is simply inert, which reads as a broken app rather than a missing
+ * feature. There is a native print path, but a recipe card is not what people
+ * reach for a printer to do from a phone, so the honest move is to not offer it.
+ * Removing dead chrome is also part of the argument that this is an app rather
+ * than a wrapped website.
+ */
 export function RecipePrintButton() {
+  if (useIsNative()) return null;
+
   return (
     <button
       type="button"

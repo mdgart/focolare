@@ -44,8 +44,11 @@ export async function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 border-b border-sand bg-[#faf5ecdd] backdrop-blur-md print:hidden">
-      <div className="mx-auto max-w-[1400px] px-4 sm:px-6 lg:px-8">
+    // pt: clears the status bar and Dynamic Island in the native shell, where
+    // the WebView fills the whole screen. px: clears the rounded corners and
+    // camera housing in landscape. All three are zero in a browser.
+    <header className="sticky top-0 z-50 border-b border-sand bg-[#faf5ecdd] pt-[env(safe-area-inset-top)] backdrop-blur-md print:hidden">
+      <div className="mx-auto max-w-[1400px] px-[max(1rem,env(safe-area-inset-left))] sm:px-6 lg:px-8">
         <div className="flex items-center justify-between gap-3 py-3 sm:gap-6">
           <Link href="/" aria-label="Focolare home" className="flex shrink-0 items-center gap-2.5">
             <Image

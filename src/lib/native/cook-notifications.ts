@@ -56,6 +56,8 @@ export function desiredCookNotifications(
       fireAt,
       kind: "cook_timer",
       url: `/cook/${cookSessionId}`,
+      // So "+5 min" and "Next step" work from a lock screen with the app closed.
+      context: { cookSessionId, stepIndex: timer.stepIndex },
     });
   }
 

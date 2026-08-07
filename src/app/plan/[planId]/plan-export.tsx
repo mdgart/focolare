@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { planAsText } from "@/actions/meal-plans";
+import { Share } from "@capacitor/share";
+import { useIsNative } from "@/lib/native";
 
 /** "Weekend baking" -> "weekend-baking". Falls back so a file is always named. */
 function fileSlug(title: string): string {
@@ -23,6 +25,7 @@ export function PlanExport({ planId, planTitle }: { planId: string; planTitle: s
   const [isPending, startTransition] = useTransition();
   const [note, setNote] = useState<string | null>(null);
   const [canShare, setCanShare] = useState(false);
+  const native = useIsNative();
 
   useEffect(() => {
     // Rendered only after mount, so the server and first client render agree —
@@ -30,14 +33,17 @@ export function PlanExport({ planId, planTitle }: { planId: string; planTitle: s
     // cascades renders (react-hooks/set-state-in-effect).
     let cancelled = false;
     void Promise.resolve().then(() => {
-      if (!cancelled && typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      // The native shell always can, via the OS sheet — `navigator.share` is
+      // unavailable in WKWebView, so the web check alone would hide it there.
+      if (cancelled) return;
+      if (native || (typeof navigator !== "undefined" && typeof navigator.share === "function")) {
         setCanShare(true);
       }
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [native]);
 
   function withText(what: (text: string) => Promise<void> | void, failure: string) {
     setNote(null);
@@ -83,7 +89,13 @@ export function PlanExport({ planId, planTitle }: { planId: string; planTitle: s
 
   function share() {
     withText(async (text) => {
-      await navigator.share({ title: planTitle, text });
+      // One sheet, two implementations: the OS share sheet in the shell, the
+      // Web Share API in a browser.
+      if (native) {
+        await Share.share({ title: planTitle, text, dialogTitle: "Share this plan" });
+      } else {
+        await navigator.share({ title: planTitle, text });
+      }
     }, "Couldn't share that.");
   }
 
@@ -92,9 +104,12 @@ export function PlanExport({ planId, planTitle }: { planId: string; planTitle: s
 
   return (
     <div className="flex flex-wrap items-center gap-2 print:hidden">
-      <button type="button" onClick={() => window.print()} className={buttonClass}>
-        Print
-      </button>
+      {/* Inert in a WebView — window.print() opens nothing — so it isn't offered. */}
+      {native ? null : (
+        <button type="button" onClick={() => window.print()} className={buttonClass}>
+          Print
+        </button>
+      )}
       <button type="button" onClick={copy} disabled={isPending} className={buttonClass}>
         Copy
       </button>

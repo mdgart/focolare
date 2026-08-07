@@ -98,6 +98,10 @@ export default function NativeCheckPage() {
         body: "If you can read this on a locked phone, Phase 1 works.",
         fireAt,
         kind: "cook_timer",
+        url: "/native-check",
+        // Shaped like a real cook timer so the lock-screen buttons are
+        // registered and attached — that pairing fails silently otherwise.
+        context: { cookSessionId: "test-session", stepIndex: 0 },
       },
     ], "cook");
     setAlarmState(
