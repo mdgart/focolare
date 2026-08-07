@@ -43,6 +43,19 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export const viewport = {
   themeColor: "#faf5ec",
+  /**
+   * Required for `env(safe-area-inset-*)` to mean anything.
+   *
+   * In the native shell the WebView fills the screen, notch and home indicator
+   * included — so without this the header runs under the clock and the Dynamic
+   * Island, which is exactly what it did on an iPhone. The trap is that the
+   * insets only become readable *because* of this setting: with the default
+   * `auto`, `env(safe-area-inset-top)` is zero, so there is nothing to
+   * compensate with and no obvious sign of why.
+   *
+   * Harmless in a browser, where the insets are zero anyway.
+   */
+  viewportFit: "cover" as const,
 };
 
 export default function RootLayout({

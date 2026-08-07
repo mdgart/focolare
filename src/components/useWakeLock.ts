@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { KeepAwake } from "@capacitor-community/keep-awake";
+import { isNative } from "@/lib/native";
 
 type WakeLockSentinelLike = { released: boolean; release: () => Promise<void> };
 
@@ -15,19 +17,35 @@ type WakeLockSentinelLike = { released: boolean; release: () => Promise<void> };
  * re-acquired on the way back — otherwise it silently stops working the first
  * time someone checks a message. Some browsers don't implement the API at all,
  * hence `supported`.
+ *
+ * **WKWebView is one of those.** The Screen Wake Lock API simply isn't there,
+ * so on iOS the cook screen dimmed and locked mid-recipe with nothing to
+ * explain why — the worst moment for it, since the reason the screen is propped
+ * up is that your hands are covered in flour. In the native shell this uses the
+ * OS call instead, which works on both platforms.
  */
 export function useWakeLock(enabled: boolean) {
   // Read once on the client rather than syncing through an effect; whether the
   // browser has the API never changes for the life of the page.
   const supported = useSyncExternalStore(
     () => () => {},
-    () => typeof navigator !== "undefined" && "wakeLock" in navigator,
+    // The native shell can always do this, whatever the WebView lacks.
+    () => isNative() || (typeof navigator !== "undefined" && "wakeLock" in navigator),
     () => false,
   );
   const [active, setActive] = useState(false);
   const sentinelRef = useRef<WakeLockSentinelLike | null>(null);
 
   const release = useCallback(async () => {
+    if (isNative()) {
+      setActive(false);
+      try {
+        await KeepAwake.allowSleep();
+      } catch {
+        /* nothing was held */
+      }
+      return;
+    }
     const sentinel = sentinelRef.current;
     sentinelRef.current = null;
     setActive(false);
@@ -41,6 +59,15 @@ export function useWakeLock(enabled: boolean) {
   }, []);
 
   const acquire = useCallback(async () => {
+    if (isNative()) {
+      try {
+        await KeepAwake.keepAwake();
+        setActive(true);
+      } catch {
+        setActive(false);
+      }
+      return;
+    }
     if (typeof navigator === "undefined" || !("wakeLock" in navigator)) return;
     if (sentinelRef.current && !sentinelRef.current.released) return;
     try {
