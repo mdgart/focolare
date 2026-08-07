@@ -58,9 +58,30 @@ WebView, then the network was cut and the phone put to sleep:
 That is the whole point of the project, demonstrated end to end: the OS holds the
 alarm, so it rings with nothing else running.
 
-Still to verify on iOS, where the constraints differ — a silenced phone will not
-ring for a `timeSensitive` notification, and `critical` needs an entitlement
-Apple does not grant cooking apps.
+Verified on iOS too (iPhone 17 Pro, iOS 26.5), with the app **fully terminated**
+rather than merely backgrounded — `launchctl` showing zero processes. The OS held
+the alarm and delivered it, and the burst grouped under one thread.
+
+**iOS needed two fixes that failed silently**, both found only by reading
+`interruption-level:` in the device log:
+
+1. **The entitlement was missing.** Without
+   `com.apple.developer.usernotifications.time-sensitive` in
+   `ios/App/App/App.entitlements`, iOS reports `timeSensitiveSetting:
+   NotSupported` and downgrades the notification.
+2. **The option key was wrong.** Capacitor wants `interruptionLevel`, not
+   `iosInterruptionLevel`. An unknown key is ignored, not rejected.
+
+Either one alone delivered at `interruption-level: active` — arriving, looking
+correct, and waiting politely behind a Focus mode while dinner burned. With both
+fixed the log reads `interruption-level: time-sensitive`.
+
+**Still untestable on a simulator: the silent switch.** iOS will not ring a
+`timeSensitive` notification on a physically silenced phone, and `critical` needs
+an entitlement Apple does not grant cooking apps. A simulator has no such switch,
+so this stays theoretical until someone tries a real handset — it is why the
+in-page beep stays, and why the UI should say so rather than let a cook find out
+with a burnt loaf.
 
 To repeat it: open `/native-check` in the shell, press **Schedule a test alarm**,
 then lock the phone. The page also reports whether Android will honour *exact*

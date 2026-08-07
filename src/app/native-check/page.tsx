@@ -108,6 +108,26 @@ export default function NativeCheckPage() {
     setExact(await exactAlarmsAllowed());
   }
 
+  /**
+   * `?alarm=1` schedules without a tap.
+   *
+   * Verifying on a device means driving it from a laptop, and neither
+   * simulator lets a script tap a button — iOS has no input command at all.
+   * Without this, every re-test needs a human hand, which is how a check stops
+   * being run. The permission prompt still requires one tap, once.
+   */
+  useEffect(() => {
+    if (!pass) return;
+    if (!new URLSearchParams(window.location.search).has("alarm")) return;
+    // Deferred a tick: calling it inline would setState synchronously inside
+    // the effect, which React 19 flags as a cascading render.
+    const id = setTimeout(() => void scheduleTestAlarm(), 0);
+    return () => clearTimeout(id);
+    // Runs when the platform resolves. Re-running would only re-schedule the
+    // same key, which the reconciler treats as a no-op.
+  }, [pass]);
+
+
   return (
     <main className="mx-auto max-w-md px-6 py-12 font-sans">
       <h1 className="text-2xl font-semibold text-ink">Native bridge check</h1>

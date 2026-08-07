@@ -105,12 +105,20 @@ function toPlatformNotification(p: PlannedNotification) {
       allowWhileIdle: true,
     },
     /**
-     * Breaks through Focus and Do Not Disturb on iOS. `critical` would also
-     * pierce the silent switch, but needs an entitlement Apple does not grant
-     * cooking apps — so a timer on a silenced phone still relies on the burst
-     * and the in-page alarm.
+     * Breaks through Focus and Do Not Disturb on iOS.
+     *
+     * The key is `interruptionLevel`, not `iosInterruptionLevel` — the plugin
+     * ignores an unknown key and quietly delivers at `active` instead, which
+     * waits politely behind a Focus mode. Caught only by reading
+     * `interruption-level:` in the device log; nothing surfaces it otherwise.
+     * It also needs the entitlement in `ios/App/App/App.entitlements`, without
+     * which iOS downgrades it just as silently.
+     *
+     * `critical` would pierce the silent switch too, but needs an entitlement
+     * Apple does not grant cooking apps — so a timer on a silenced phone still
+     * relies on the burst and the in-page alarm.
      */
-    iosInterruptionLevel: p.kind === "cook_timer" ? ("timeSensitive" as const) : ("active" as const),
+    interruptionLevel: p.kind === "cook_timer" ? ("timeSensitive" as const) : ("active" as const),
     threadIdentifier: p.threadId,
     group: p.threadId,
     /** Carried so a tap can route without another round trip. */
