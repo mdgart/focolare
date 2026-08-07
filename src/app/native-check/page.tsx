@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { exactAlarmsAllowed, syncNotifications } from "@/lib/native/notifications";
 
 
 /**
@@ -66,6 +67,8 @@ export default function NativeCheckPage() {
 
   const { platform, bridge, nativeApi, origin, capacitorKeys } = probe;
   const [handshake, setHandshake] = useState<Handshake | null>(null);
+  const [alarmState, setAlarmState] = useState<string | null>(null);
+  const [exact, setExact] = useState<boolean | null>(null);
 
   useEffect(() => {
     // Proves the shell can also reach the API it will depend on from Phase 1.
@@ -76,6 +79,34 @@ export default function NativeCheckPage() {
   }, []);
 
   const pass = platform === "ios" || platform === "android";
+
+  /**
+   * The Phase 1 proof, on demand.
+   *
+   * Scheduling is unit-tested, but "the OS actually holds this and rings it
+   * while the app is closed" can only be answered by a device. Thirty seconds
+   * is long enough to lock the phone and put it down, which is the posture that
+   * matters — a notification that only appears in the foreground proves nothing.
+   */
+  async function scheduleTestAlarm() {
+    setAlarmState("scheduling…");
+    const fireAt = Date.now() + 30_000;
+    const res = await syncNotifications([
+      {
+        key: `native-check:${fireAt}`,
+        title: "Focolare test alarm",
+        body: "If you can read this on a locked phone, Phase 1 works.",
+        fireAt,
+        kind: "cook_timer",
+      },
+    ]);
+    setAlarmState(
+      res.skipped
+        ? `skipped: ${res.skipped}`
+        : `scheduled ${res.scheduled} — lock the phone and wait 30s`,
+    );
+    setExact(await exactAlarmsAllowed());
+  }
 
   return (
     <main className="mx-auto max-w-md px-6 py-12 font-sans">
@@ -128,7 +159,29 @@ export default function NativeCheckPage() {
                 : `min ${handshake.minBuild} / current ${handshake.currentBuild}`}
           </dd>
         </div>
+        {exact !== null ? (
+          <div className="flex justify-between gap-4 border-b border-sand pb-2">
+            <dt className="text-ink-soft">Android exact alarms</dt>
+            <dd className="font-medium text-ink">{exact ? "allowed" : "BATCHED — will fire late"}</dd>
+          </div>
+        ) : null}
       </dl>
+
+      {pass ? (
+        <div className="mt-8">
+          <button
+            type="button"
+            onClick={() => void scheduleTestAlarm()}
+            className="rounded-full bg-terracotta px-5 py-2.5 text-sm font-semibold text-[#fff8f0]"
+          >
+            Schedule a test alarm (30s)
+          </button>
+          {alarmState ? <p className="mt-3 text-sm text-ink-soft">{alarmState}</p> : null}
+          <p className="mt-2 text-xs text-ink-muted">
+            Then lock the phone. Ringing with the app closed is the whole point of Phase 1.
+          </p>
+        </div>
+      ) : null}
     </main>
   );
 }

@@ -42,6 +42,31 @@ under the island. Harmless on the web, wrong in an installed app. Phase 2 should
 add `env(safe-area-inset-*)` padding to the header and any fixed element, which
 is the same pass that hides web-only chrome behind `useIsNative()`.
 
+## Phase 1 — cook timers ring on a locked phone ✅
+
+Verified on the Android emulator, 2026-08-06. A timer was scheduled from the
+WebView, then the network was cut and the phone put to sleep:
+
+| Condition | Result |
+|---|---|
+| App backgrounded (`topResumedActivity` = 0) | fired |
+| Screen asleep (`mWakefulness=Asleep`) | fired |
+| **Airplane mode on** — no server, no cron, no network | fired |
+| Burst of three, grouped | one heading badged "3", not three rows |
+| Channel | `focolare-timer`, importance 5 |
+
+That is the whole point of the project, demonstrated end to end: the OS holds the
+alarm, so it rings with nothing else running.
+
+Still to verify on iOS, where the constraints differ — a silenced phone will not
+ring for a `timeSensitive` notification, and `critical` needs an entitlement
+Apple does not grant cooking apps.
+
+To repeat it: open `/native-check` in the shell, press **Schedule a test alarm**,
+then lock the phone. The page also reports whether Android will honour *exact*
+alarms — if that says `BATCHED`, timers will fire late and the cause is the
+`SCHEDULE_EXACT_ALARM` permission being revoked in Settings.
+
 ## ⚠️ Do not develop the shell against `next dev`
 
 This cost an afternoon, so it is the first thing to know.
