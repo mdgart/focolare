@@ -29,6 +29,12 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of a dish to add to your recipe.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Save a recipe photo back to your library.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Choose a photo of a dish to add to your recipe.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
