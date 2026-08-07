@@ -324,6 +324,75 @@ export async function armStepTimerAction(input: {
 }
 
 /**
+ * Give a timer a few more minutes, from wherever the cook happens to be.
+ *
+ * Exists for the lock-screen action: when a timer rings and the pasta needs
+ * another two minutes, the useful thing is to say so without unlocking the
+ * phone, finding the app and hunting for the step. That is also the honest
+ * answer to "what does this do that a website can't" — a website cannot put a
+ * button on a lock screen.
+ *
+ * Moves the pending row rather than creating one, so the event keeps its
+ * identity and the email and SMS paths follow it. Returns the new fire time so
+ * the caller can move the on-device alarm to match without a second round trip.
+ */
+export async function extendStepTimerAction(input: {
+  cookSessionId: string;
+  stepIndex: number;
+  extraSeconds: number;
+}): Promise<{ ok: true; fireAt: string } | { error: string }> {
+  const session = await getServerSession();
+  if (!session?.user?.id) return { error: "Unauthorized" };
+
+  // Bounded: this is driven by a notification button, and an unbounded number
+  // from outside the app should not be able to park an event years away.
+  const extra = Math.min(Math.max(Math.round(input.extraSeconds), 60), 60 * 60);
+
+  const [row] = await db
+    .select({ sessionId: cookSession.id })
+    .from(cookSession)
+    .where(and(eq(cookSession.id, input.cookSessionId), eq(cookSession.userId, session.user.id)))
+    .limit(1);
+  if (!row) return { error: "Not found" };
+
+  const [event] = await db
+    .select({ id: scheduledStepEvent.id, fireAt: scheduledStepEvent.fireAt, payload: scheduledStepEvent.pushPayload })
+    .from(scheduledStepEvent)
+    .where(
+      and(
+        eq(scheduledStepEvent.cookSessionId, row.sessionId),
+        eq(scheduledStepEvent.stepIndex, input.stepIndex),
+        eq(scheduledStepEvent.kind, "timer_end"),
+      ),
+    )
+    .limit(1);
+  if (!event) return { error: "That timer is no longer running." };
+
+  /**
+   * Measured from now, not from the original deadline.
+   *
+   * A cook pressing "+5 min" on a notification means five more minutes from
+   * this moment. Adding to a fire time that already passed while the phone sat
+   * in a pocket would schedule something in the past, which fires instantly and
+   * looks like the button did nothing.
+   */
+  const fireAt = new Date(Date.now() + extra * 1000);
+
+  await db
+    .update(scheduledStepEvent)
+    .set({
+      fireAt,
+      status: "pending",
+      // Clear any pause: the cook just asked for it to run.
+      pausedRemainingSeconds: null,
+      pushPayload: { ...(event.payload as Record<string, unknown>), fireAt: fireAt.toISOString() },
+    })
+    .where(eq(scheduledStepEvent.id, event.id));
+
+  return { ok: true as const, fireAt: fireAt.toISOString() };
+}
+
+/**
  * How much of the recipe this session is making, as a percentage.
  *
  * Kept on the session rather than the recipe: doubling a batch tonight is a fact

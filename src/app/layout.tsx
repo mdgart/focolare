@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { getPublicLogoSvgUrl, getPublicLogoUrl } from "@/lib/public-logo-url";
 import "./globals.css";
 import { NativeReminderSync } from "@/components/NativeReminderSync";
+import { NativeNotificationActions } from "@/components/NativeNotificationActions";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -113,6 +114,8 @@ export default function RootLayout({
         </ChromeGate>
         {/* Renders nothing; keeps the phone's own reminder alarms in step. */}
         <NativeReminderSync />
+        {/* Registers the lock-screen buttons and handles their presses. */}
+        <NativeNotificationActions />
       </body>
     </html>
   );

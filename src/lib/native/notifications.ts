@@ -2,6 +2,7 @@
 
 import { LocalNotifications, type PendingResult } from "@capacitor/local-notifications";
 import { Preferences } from "@capacitor/preferences";
+import { COOK_TIMER_ACTION_TYPE } from "@/lib/native/notification-actions";
 import { getPlatform, isNative } from "@/lib/native";
 import {
   planNotifications,
@@ -122,8 +123,20 @@ function toPlatformNotification(p: PlannedNotification) {
     interruptionLevel: p.kind === "cook_timer" ? ("timeSensitive" as const) : ("active" as const),
     threadIdentifier: p.threadId,
     group: p.threadId,
-    /** Carried so a tap can route without another round trip. */
-    extra: { key: p.key, url: p.url, kind: p.kind },
+    /**
+     * The buttons. Only timers get them — there is nothing useful to do to a
+     * shopping reminder from a lock screen, and a button that just opens the app
+     * is worse than no button.
+     */
+    actionTypeId: p.kind === "cook_timer" ? COOK_TIMER_ACTION_TYPE : undefined,
+    /** Carried so a tap can route, and a button can act, without loading a screen. */
+    extra: {
+      key: p.key,
+      url: p.url,
+      kind: p.kind,
+      cookSessionId: p.context?.cookSessionId,
+      stepIndex: p.context?.stepIndex,
+    },
   };
 }
 

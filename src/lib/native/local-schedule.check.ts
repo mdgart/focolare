@@ -238,5 +238,31 @@ check(
   2,
 );
 
+/* ---------- what a lock-screen button needs ---------- */
+
+// A press can arrive from a cold start, so everything the handler needs has to
+// ride on the notification itself.
+check(
+  "a cook timer carries what its buttons act on",
+  cookDesired([{ stepIndex: 1, state: "running", atMs: NOW }])[0]?.context,
+  { cookSessionId: "sesh", stepIndex: 1 },
+);
+check(
+  "...and it survives planning",
+  planNotifications(cookDesired([{ stepIndex: 1, state: "running", atMs: NOW }]), NOW)[0]?.context,
+  { cookSessionId: "sesh", stepIndex: 1 },
+);
+check(
+  "...on every alert in the burst, not just the first",
+  planNotifications(cookDesired([{ stepIndex: 1, state: "running", atMs: NOW }]), NOW)
+    .every((p) => p.context?.stepIndex === 1),
+  true,
+);
+check(
+  "a reminder carries none — nothing useful to do to it from a lock screen",
+  planNotifications([meal("m", 60)], NOW)[0]?.context,
+  undefined,
+);
+
 console.log(failures === 0 ? "\nall passed" : `\n${failures} failed`);
 if (failures > 0) process.exit(1);
