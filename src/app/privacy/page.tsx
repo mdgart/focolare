@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { appHost } from "@/lib/app-url";
+/**
+ * Where privacy mail actually goes.
+ *
+ * Deliberately not derived from the site's host. An email domain and a web
+ * host are different things: the apex serves a 308 to `www`, so building an
+ * address from it yields `privacy@www.focolare.app`, which is nobody's mailbox
+ * — and in local development it yields `privacy@localhost:3000`, which isn't
+ * an address at all. A store listing points at this page, so a contact that
+ * silently depends on which env var happens to be set is worse than a constant.
+ */
+const CONTACT_EMAIL = process.env.NEXT_PUBLIC_PRIVACY_EMAIL?.trim() || "privacy@focolare.app";
 
 /**
  * What we hold, who sees it, and how to get rid of it.
@@ -35,8 +45,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function PrivacyPage() {
-  const host = appHost();
-
   return (
     <article className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
       <h1 className="font-display text-3xl font-semibold text-ink">Privacy</h1>
@@ -126,8 +134,8 @@ export default function PrivacyPage() {
         </p>
         <p>
           If you cannot sign in, email{" "}
-          <a href={`mailto:privacy@${host}`} className="font-medium text-terracotta-strong underline">
-            privacy@{host}
+          <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-terracotta-strong underline">
+            {CONTACT_EMAIL}
           </a>{" "}
           from the address on the account and ask for it to be deleted.
         </p>
@@ -148,8 +156,8 @@ export default function PrivacyPage() {
       <Section title="Contact">
         <p>
           Questions about any of this:{" "}
-          <a href={`mailto:privacy@${host}`} className="font-medium text-terracotta-strong underline">
-            privacy@{host}
+          <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-terracotta-strong underline">
+            {CONTACT_EMAIL}
           </a>
           .
         </p>
