@@ -219,9 +219,15 @@ export const channel = pgTable(
   "channel",
   {
     id: uuid("id").primaryKey().defaultRandom(),
-    ownerUserId: text("owner_user_id")
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+    /**
+     * Null once the owner has deleted their account.
+     *
+     * A channel can outlive the person who made it: leaving destroys everything
+     * personal, but published recipes other people saved stay up under an
+     * anonymous name rather than vanishing from their lists. `set null` rather
+     * than `cascade` is what makes that possible.
+     */
+    ownerUserId: text("owner_user_id").references(() => user.id, { onDelete: "set null" }),
     slug: text("slug").notNull().unique(),
     title: text("title").notNull(),
     bio: text("bio"),

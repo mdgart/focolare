@@ -599,7 +599,12 @@ async function categoryIdForSlug(slug: string | null): Promise<string | null> {
 
 async function ensureDemoUserAndChannel(): Promise<{ channelId: string; ownerId: string }> {
   const [existingCh] = await db.select().from(channel).where(eq(channel.slug, DEMO_CHANNEL_SLUG)).limit(1);
-  if (existingCh) return { channelId: existingCh.id, ownerId: existingCh.ownerUserId };
+  // The demo channel always has an owner; a detached one would mean someone
+  // deleted the demo account, which the seed should not quietly work around.
+  if (existingCh) {
+    if (!existingCh.ownerUserId) throw new Error("Demo channel has no owner — reseed from scratch.");
+    return { channelId: existingCh.id, ownerId: existingCh.ownerUserId };
+  }
 
   let ownerId = DEMO_USER_ID;
   const [byEmail] = await db.select().from(user).where(eq(user.email, DEMO_EMAIL)).limit(1);
