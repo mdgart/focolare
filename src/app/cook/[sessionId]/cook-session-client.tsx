@@ -360,6 +360,7 @@ export function CookSessionClient(props: {
           armed,
           Date.now(),
         ),
+        "cook",
       );
     };
 

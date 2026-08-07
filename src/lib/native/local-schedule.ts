@@ -159,9 +159,24 @@ export function planNotifications(
 export function reconcile(
   planned: readonly PlannedNotification[],
   pending: readonly PendingNotification[],
+  /**
+   * Ids this caller scheduled last time. **Only these may be cancelled.**
+   *
+   * Two independent callers keep the schedule: the cook screen, which knows
+   * about running timers, and the reminder sync, which knows about meal and
+   * shopping rows. Each passes only its own half. Without this, whichever ran
+   * last would see the other's alarms as "no longer wanted" and cancel them —
+   * so opening a recipe would silently delete tomorrow's reminders, and a
+   * reminder refresh would delete the timer on a simmering pan.
+   *
+   * Omit it and nothing is cancelled, which is the safe direction: a stale
+   * notification is a nuisance, a missing one is a ruined dinner.
+   */
+  owned?: readonly number[],
 ): { schedule: PlannedNotification[]; cancel: number[] } {
   const pendingById = new Map(pending.map((p) => [p.id, p.fireAt]));
   const plannedById = new Map(planned.map((p) => [p.id, p]));
+  const ownedIds = owned ? new Set(owned) : null;
 
   const schedule = planned.filter((p) => {
     const existing = pendingById.get(p.id);
@@ -170,7 +185,9 @@ export function reconcile(
     return existing === undefined || Math.abs(existing - p.fireAt) > 1000;
   });
 
-  const cancel = pending.filter((p) => !plannedById.has(p.id)).map((p) => p.id);
+  const cancel = pending
+    .filter((p) => !plannedById.has(p.id) && (ownedIds ? ownedIds.has(p.id) : false))
+    .map((p) => p.id);
 
   return { schedule, cancel };
 }

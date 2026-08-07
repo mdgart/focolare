@@ -1,6 +1,7 @@
 "use client";
 
 import { LocalNotifications, type PendingResult } from "@capacitor/local-notifications";
+import { Preferences } from "@capacitor/preferences";
 import { getPlatform, isNative } from "@/lib/native";
 import {
   planNotifications,
@@ -136,8 +137,37 @@ function toPlatformNotification(p: PlannedNotification) {
  * Returns what it did, which is worth logging while this is young: a silently
  * empty schedule is exactly the bug this whole phase exists to prevent.
  */
+/**
+ * Who is doing the scheduling.
+ *
+ * Two callers keep the device schedule and each knows only its own half — the
+ * cook screen has the running timers, the reminder sync has the planner rows.
+ * Whichever ran last would otherwise see the other's alarms as unwanted and
+ * cancel them: opening a recipe would delete tomorrow's reminders, refreshing
+ * reminders would delete the timer on a simmering pan.
+ */
+export type SyncScope = "cook" | "reminders";
+
+const OWNED_KEY = (scope: SyncScope) => `focolare.native.owned.${scope}`;
+
+async function readOwned(scope: SyncScope): Promise<number[]> {
+  const { value } = await Preferences.get({ key: OWNED_KEY(scope) });
+  if (!value) return [];
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((n): n is number => typeof n === "number") : [];
+  } catch {
+    return [];
+  }
+}
+
+async function writeOwned(scope: SyncScope, ids: number[]): Promise<void> {
+  await Preferences.set({ key: OWNED_KEY(scope), value: JSON.stringify(ids) });
+}
+
 export async function syncNotifications(
   desired: readonly DesiredNotification[],
+  scope: SyncScope,
   now: number = Date.now(),
 ): Promise<{ scheduled: number; cancelled: number; skipped?: string }> {
   if (!isNative()) return { scheduled: 0, cancelled: 0, skipped: "web" };
@@ -148,7 +178,7 @@ export async function syncNotifications(
   await ensureChannels();
 
   const planned = planNotifications(desired, now);
-  const { schedule, cancel } = reconcile(planned, await readPending());
+  const { schedule, cancel } = reconcile(planned, await readPending(), await readOwned(scope));
 
   if (cancel.length > 0) {
     await LocalNotifications.cancel({ notifications: cancel.map((id) => ({ id })) });
@@ -156,6 +186,11 @@ export async function syncNotifications(
   if (schedule.length > 0) {
     await LocalNotifications.schedule({ notifications: schedule.map(toPlatformNotification) });
   }
+
+  // Recorded after the fact so a crash mid-schedule leaves ids unclaimed rather
+  // than claimed-but-absent. Unclaimed means "never cancelled by us", which is
+  // the harmless direction.
+  await writeOwned(scope, planned.map((p) => p.id));
 
   return { scheduled: schedule.length, cancelled: cancel.length };
 }

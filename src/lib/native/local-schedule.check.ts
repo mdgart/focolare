@@ -145,17 +145,46 @@ check(
   0,
 );
 check(
-  "a notification no longer wanted is cancelled",
-  reconcile([], [{ id: 999, fireAt: NOW + MIN }]).cancel,
+  "a notification no longer wanted is cancelled — if this caller owns it",
+  reconcile([], [{ id: 999, fireAt: NOW + MIN }], [999]).cancel,
   [999],
 );
 check(
   "...and one still wanted is not",
-  reconcile(planned, [
-    { id: planned[0]!.id, fireAt: planned[0]!.fireAt },
-    { id: 999, fireAt: NOW + MIN },
-  ]).cancel,
+  reconcile(
+    planned,
+    [
+      { id: planned[0]!.id, fireAt: planned[0]!.fireAt },
+      { id: 999, fireAt: NOW + MIN },
+    ],
+    [planned[0]!.id, 999],
+  ).cancel,
   [999],
+);
+
+// The collision that would otherwise delete someone's dinner: two callers each
+// sync their own half of the schedule, and neither may touch the other's.
+check(
+  "another caller's alarms are never cancelled",
+  reconcile([], [{ id: 4242, fireAt: NOW + MIN }], [999]).cancel,
+  [],
+);
+check(
+  "...and with no ownership stated, nothing is cancelled at all",
+  reconcile([], [{ id: 4242, fireAt: NOW + MIN }]).cancel,
+  [],
+);
+check(
+  "a caller still cancels its own while leaving others alone",
+  reconcile(
+    [],
+    [
+      { id: 111, fireAt: NOW + MIN },
+      { id: 222, fireAt: NOW + MIN },
+    ],
+    [111],
+  ).cancel,
+  [111],
 );
 
 /* ---------- turning cook timers into alarms ---------- */

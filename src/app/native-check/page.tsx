@@ -99,7 +99,7 @@ export default function NativeCheckPage() {
         fireAt,
         kind: "cook_timer",
       },
-    ]);
+    ], "cook");
     setAlarmState(
       res.skipped
         ? `skipped: ${res.skipped}`
