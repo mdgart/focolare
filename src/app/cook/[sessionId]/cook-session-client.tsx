@@ -27,6 +27,10 @@ import {
   type ArmedTimer,
 } from "@/lib/cook-timers";
 import { createAlarm } from "@/lib/cook-alarm";
+import { App as CapApp } from "@capacitor/app";
+import { isNative } from "@/lib/native";
+import { syncNotifications } from "@/lib/native/notifications";
+import { desiredCookNotifications } from "@/lib/native/cook-notifications";
 import { IngredientControls } from "./ingredient-controls";
 import type { DisplayIngredient, IngredientPrefs } from "@/lib/ingredient-prefs";
 import type { MeasureSystem } from "@/lib/unit-convert";
@@ -174,19 +178,35 @@ export function CookSessionClient(props: {
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
 
+  /**
+   * Start the countdown here first, tell the server after.
+   *
+   * The timer belongs to the person in the kitchen, not to the network. This
+   * used to await the server before touching state, inside a try/finally with
+   * no catch — so a dropped connection threw straight past the error branch and
+   * "Start timer" did nothing at all, with no message. Standing in a kitchen
+   * watching a button not work is the worst version of this screen.
+   *
+   * Now the clock starts immediately and a failure is reported rather than
+   * swallowed. The local timer keeps running either way: it still rings in the
+   * page, and once the native shell schedules alarms it rings on a locked phone
+   * too. What is lost without the server is the push to a closed app, so that
+   * is exactly what the message says.
+   */
   const armTimer = useCallback(async () => {
     if (pendingArm || !step || step.durationSeconds <= 0 || timerArmedAt != null) return;
     setPendingArm(true);
     setVoiceHint(null);
     // Browsers only allow sound after a gesture, and zero o'clock isn't one.
     alarmRef.current?.prime();
+    setArmed((all) => armStep(all, idx, Date.now()));
     try {
       const res = await armStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
-      if ("error" in res) {
-        setVoiceHint(res.error);
-        return;
-      }
-      setArmed((all) => armStep(all, idx, Date.now()));
+      if ("error" in res) setVoiceHint(res.error);
+    } catch {
+      setVoiceHint(
+        "Timer running on this device. We couldn't reach the server, so it won't alert you if you close the app.",
+      );
     } finally {
       setPendingArm(false);
     }
@@ -233,16 +253,30 @@ export function CookSessionClient(props: {
     await armStepTimerAction({ cookSessionId: props.cookSessionId, stepIndex: idx });
   }, [idx, step, props.cookSessionId]);
 
+  /**
+   * Move on now, reconcile with the server after.
+   *
+   * This used to await the skip call before advancing, so a failed request left
+   * the cook pressing Next and watching the same step stare back — silently,
+   * because nothing caught the throw. Moving between steps is the one thing
+   * this screen must never refuse to do.
+   */
   const goNext = useCallback(async () => {
     setVoiceHint(null);
     const cur = idx;
-    await skipPendingTimersForCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: cur });
-    // Its server-side event was just skipped, so drop only this step's.
+    // Its server-side event is about to be skipped, so drop only this step's.
     setArmed((all) => retireStep(all, cur));
     setConfirmNext(false);
     const nextIdx = Math.min(cur + 1, props.timeline.length - 1);
     setIdx(nextIdx);
-    await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: nextIdx });
+    try {
+      await skipPendingTimersForCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: cur });
+      await advanceCookStepAction({ cookSessionId: props.cookSessionId, stepIndex: nextIdx });
+    } catch {
+      // The step moved; only the server's record of it didn't. Phase 3's queue
+      // replays this — until then, say so rather than pretend it landed.
+      setVoiceHint("You've moved on, but we couldn't save that. Reload when you're back online.");
+    }
   }, [idx, props.cookSessionId, props.timeline.length]);
 
   const goNextRef = useRef(goNext);
@@ -295,6 +329,48 @@ export function CookSessionClient(props: {
     const id = window.setInterval(() => setNow(Date.now()), 500);
     return () => window.clearInterval(id);
   }, []);
+
+  /**
+   * Keep the phone's own alarms matched to the timers on screen.
+   *
+   * `armed` already changes at exactly the right moments — arm, pause, resume,
+   * restart, retire — so this effect is the entire cook-timer half of the
+   * native schedule. No new state, no new events to keep in step.
+   *
+   * The point of it: these alarms are held by the OS, so the timer rings on a
+   * locked phone with the app closed, no server, no cron, and no network. The
+   * server's row stays the source of truth and still drives email and SMS; this
+   * just gets there first and without asking anyone's permission but the
+   * cook's.
+   *
+   * Also re-run on resume, because the OS can drop or defer pending alarms
+   * while an app is backgrounded and an idempotent reconcile is cheap.
+   */
+  useEffect(() => {
+    if (!isNative()) return;
+
+    let cancelled = false;
+    const sync = () => {
+      if (cancelled) return;
+      void syncNotifications(
+        desiredCookNotifications(
+          props.cookSessionId,
+          props.recipeTitle,
+          props.timeline,
+          armed,
+          Date.now(),
+        ),
+        "cook",
+      );
+    };
+
+    sync();
+    const listener = CapApp.addListener("resume", sync);
+    return () => {
+      cancelled = true;
+      void listener.then((l) => l.remove());
+    };
+  }, [armed, props.cookSessionId, props.recipeTitle, props.timeline]);
 
   useEffect(() => {
     if (!voiceOn) {

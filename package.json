@@ -5,6 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "dev:cron": "tsx scripts/dev-cron.ts",
+    "native:serve": "next build && next start -p 3001",
+    "native:gate": "NATIVE_SERVER_URL=http://$(ipconfig getifaddr en0):3001/native-check npx cap sync",
+    "native:local": "NATIVE_SERVER_URL=http://$(ipconfig getifaddr en0):3001 npx cap sync",
+    "native:prod": "npx cap sync",
     "build": "next build",
     "vercel-build": "npm run db:migrate && next build",
     "start": "next start",
@@ -16,8 +20,9 @@
     "check:timers": "tsx src/lib/cook-timers.check.ts",
     "check:units": "tsx src/lib/unit-convert.check.ts",
     "check:prefs": "tsx src/lib/ingredient-prefs.check.ts",
+    "check:schedule": "tsx src/lib/native/local-schedule.check.ts",
     "check:usernames": "tsx src/lib/username.check.ts",
-    "check": "npm run check:matching && npm run check:grocery && npm run check:suggest && npm run check:ingredients && npm run check:timers && npm run check:units && npm run check:prefs && npm run check:usernames",
+    "check": "npm run check:matching && npm run check:grocery && npm run check:suggest && npm run check:ingredients && npm run check:timers && npm run check:units && npm run check:prefs && npm run check:schedule && npm run check:usernames",
     "db:generate": "drizzle-kit generate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
@@ -33,6 +38,12 @@
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.3",
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/local-notifications": "^8.2.1",
+    "@capacitor/preferences": "^8.0.1",
     "@paralleldrive/cuid2": "^3.3.0",
     "@vercel/blob": "^2.6.1",
     "better-auth": "^1.6.3",
@@ -48,6 +59,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/nodemailer": "^8.0.0",

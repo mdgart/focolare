@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+		Lets a cook timer break through Focus and Do Not Disturb.
+
+		Without this, iOS silently downgrades `timeSensitive` to `active` — the
+		notification still arrives, but it waits politely behind a Focus mode,
+		which for a timer means the food is ruined before anyone is told. The
+		log line to look for is `interruption-level: active` where you asked for
+		timeSensitive, and `timeSensitiveSetting: NotSupported` in the app's
+		notification settings. Nothing else announces it.
+
+		This one Apple grants on request in the developer portal — unlike
+		critical alerts, which pierce the silent switch and are not given to
+		cooking apps. A silenced phone therefore still relies on the burst and
+		the in-page alarm, and the UI should say so rather than let someone
+		discover it with a burnt loaf.
+	-->
+	<key>com.apple.developer.usernotifications.time-sensitive</key>
+	<true/>
+</dict>
+</plist>
