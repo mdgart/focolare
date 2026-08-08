@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { getChannelProfileForUser } from "@/actions/channels";
 import { listRecipesForUser } from "@/actions/recipes";
 import { db } from "@/db";
-import { user } from "@/db/schema";
+import { recipe, user } from "@/db/schema";
 import { appHost } from "@/lib/app-url";
 import { cookNotifyChannelsAvailable } from "@/lib/cook-timer-notify";
 import { getOrCreateChannelForUser } from "@/lib/ensure-channel";
@@ -19,6 +19,7 @@ import { VoiceCookSetting } from "@/components/VoiceCookSetting";
 import { NotificationSettingsForm } from "./notification-settings-form";
 import { RestoreIntroButton } from "./restore-intro-button";
 import { VerifyEmailPanel } from "./verify-email-panel";
+import { DeleteAccountPanel } from "./delete-account-panel";
 
 export const metadata = {
   title: "Account · Focolare",
@@ -41,6 +42,23 @@ export default async function AccountPage() {
   ]);
 
   const email = profile?.email ?? session.user.email ?? "";
+
+  // Said plainly before the button rather than discovered afterwards: someone
+  // deleting an account reasonably assumes everything goes.
+  const publishedCount = myChannel
+    ? (
+        await db
+          .select({ id: recipe.id })
+          .from(recipe)
+          .where(
+            and(
+              eq(recipe.channelId, myChannel.id),
+              eq(recipe.visibility, "public"),
+              isNotNull(recipe.publishedAt),
+            ),
+          )
+      ).length
+    : 0;
   const displayName = profile?.name ?? session.user.name ?? "—";
   const verified = profile?.emailVerified ?? session.user.emailVerified ?? false;
   const createdAt = profile?.createdAt;
@@ -158,6 +176,8 @@ export default async function AccountPage() {
         twilioConfigured={channels.twilio}
         smsEntitled={PLAN_LIMITS[(profile?.plan as Plan) ?? "free"].smsNotifications}
       />
+
+      <DeleteAccountPanel email={email} publishedCount={publishedCount} />
 
       <p className="text-sm text-neutral-600">
         Use the menu under your name in the header to <strong>log out</strong>, or go back to{" "}

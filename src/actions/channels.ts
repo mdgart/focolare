@@ -187,7 +187,9 @@ export async function getChannelBySlug(slug: string, opts?: { viewerUserId: stri
 
   // A blocked creator's channel reads as missing to everyone but themselves,
   // so a block hides the profile as well as the recipes.
-  if (!isOwner) {
+  // A detached channel has no owner to be blocked — its recipes outlived the
+  // account that made them, which is the point of keeping them.
+  if (!isOwner && ch.ownerUserId) {
     const [owner] = await db
       .select({ blockedAt: user.blockedAt })
       .from(user)

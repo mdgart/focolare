@@ -106,8 +106,13 @@ export default function RootLayout({
             </nav>
           </div>
           <div className="border-t border-sand/70">
-            <p className="mx-auto w-full max-w-[1400px] px-4 py-4 text-xs text-ink-muted sm:px-6 lg:px-8">
-              © {new Date().getFullYear()} Focolare. Made for slow food and good timing.
+            <p className="mx-auto flex w-full max-w-[1400px] flex-wrap items-center gap-x-4 gap-y-1 px-4 py-4 text-xs text-ink-muted sm:px-6 lg:px-8">
+              <span>© {new Date().getFullYear()} Focolare. Made for slow food and good timing.</span>
+              {/* Discoverable without an account: Play requires a reachable
+                  privacy policy, and a way to ask for deletion without the app. */}
+              <Link href="/privacy" className="underline-offset-2 hover:text-ink-soft hover:underline">
+                Privacy
+              </Link>
             </p>
           </div>
         </footer>
