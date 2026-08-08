@@ -46,3 +46,9 @@ next-env.d.ts
 # local AI tooling config
 .claude/
 .cursor/
+
+# capacitor-assets also emits PWA output, which collides with the manifest
+# route in src/app/manifest.ts — the static file wins and its icon paths are
+# relative, so they resolve to nothing.
+/icons
+/public/manifest.webmanifest
